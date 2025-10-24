@@ -1,4 +1,4 @@
-# downloader.py - Core download functionality with detailed metrics and debugging
+#main file
 
 import os
 import requests
@@ -362,15 +362,7 @@ class MultiStreamDownloader:
         print(f"Metrics exported to: {filepath}")
     
     def download(self, output_path=None):
-        """
-        Main download function - coordinates the entire download process.
-        
-        Args:
-            output_path: Where to save the file (defaults to DOWNLOAD_FOLDER)
-        
-        Returns:
-            Path to downloaded file on success, None on failure
-        """
+    
         try:
             # Step 1: Check if download is possible
             print("Checking server support...")

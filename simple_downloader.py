@@ -110,7 +110,7 @@ class SimpleDownloader:
             self.downloaded_bytes = 0
             self.start_time = time.time()
             
-            # Simple GET request - no range, just stream the whole file
+        
             response = requests.get(
                 self.url,
                 stream=True,
