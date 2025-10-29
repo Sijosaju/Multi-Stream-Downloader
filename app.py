@@ -1,5 +1,5 @@
 # app.py - Flask application with File Manager
-from flask import Flask, render_template, request, jsonify, send_file # type: ignore
+from flask import Flask, render_template, request, jsonify, send_file 
 import os
 import threading
 import time
