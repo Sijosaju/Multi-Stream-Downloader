@@ -1,750 +1,16 @@
-// // static/app.js - Professional Download Manager with File Manager
-// class DownloadManager {
-//     constructor() {
-//         this.activeDownloads = new Map();
-//         this.updateInterval = null;
-//         this.currentPage = 'downloads';
-//         this.init();
-//     }
-
-//     init() {
-//         // Form submission
-//         document.getElementById('downloadForm').addEventListener('submit', (e) => {
-//             e.preventDefault();
-//             this.startDownload();
-//         });
-
-//         // Mode change handler
-//         document.querySelectorAll('input[name="mode"]').forEach(radio => {
-//             radio.addEventListener('change', () => {
-//                 this.toggleStreamsControl();
-//             });
-//         });
-
-//         // Close metrics handler
-//         document.getElementById('closeMetrics').addEventListener('click', () => {
-//             document.getElementById('metricsCard').classList.add('d-none');
-//         });
-
-//         // File Manager handlers
-//         document.getElementById('refreshFiles').addEventListener('click', () => {
-//             this.loadFiles();
-//         });
-
-//         document.getElementById('openDownloadsFolder').addEventListener('click', () => {
-//             this.openDownloadsFolder();
-//         });
-
-//         // Navigation handlers
-//         document.querySelectorAll('.nav-link').forEach(link => {
-//             link.addEventListener('click', (e) => {
-//                 e.preventDefault();
-//                 const page = e.target.closest('.nav-link').dataset.page;
-//                 this.switchPage(page);
-//             });
-//         });
-
-//         this.toggleStreamsControl();
-//         this.startUpdateInterval();
-//         this.loadFiles(); // Load files on initial page load
-//     }
-
-//     switchPage(page) {
-//         // Update navigation
-//         document.querySelectorAll('.nav-link').forEach(link => {
-//             link.classList.remove('active');
-//         });
-//         document.querySelector(`[data-page="${page}"]`).classList.add('active');
-
-//         // Update page content
-//         document.querySelectorAll('.page-section').forEach(section => {
-//             section.classList.remove('active');
-//         });
-//         document.getElementById(`${page}-page`).classList.add('active');
-
-//         this.currentPage = page;
-
-//         // Load files if switching to file manager
-//         if (page === 'files') {
-//             this.loadFiles();
-//         }
-//     }
-
-//     toggleStreamsControl() {
-//         const mode = document.querySelector('input[name="mode"]:checked').value;
-//         const streamsInput = document.getElementById('numStreams');
-//         streamsInput.disabled = mode === 'single';
-//     }
-
-//     async startDownload() {
-//         const url = document.getElementById('url').value;
-//         const mode = document.querySelector('input[name="mode"]:checked').value;
-//         const numStreams = document.getElementById('numStreams').value;
-
-//         if (!url) {
-//             this.showAlert('Please enter a URL', 'danger');
-//             return;
-//         }
-
-//         if (!url.startsWith('http://') && !url.startsWith('https://')) {
-//             this.showAlert('URL must start with http:// or https://', 'danger');
-//             return;
-//         }
-
-//         try {
-//             const response = await fetch('/api/downloads', {
-//                 method: 'POST',
-//                 headers: {
-//                     'Content-Type': 'application/json',
-//                 },
-//                 body: JSON.stringify({
-//                     url: url,
-//                     mode: mode,
-//                     num_streams: parseInt(numStreams)
-//                 })
-//             });
-
-//             const data = await response.json();
-
-//             if (response.ok) {
-//                 this.addDownloadItem(data.download_id, url, mode);
-//                 document.getElementById('url').value = '';
-//                 this.showAlert('Download started successfully', 'success');
-//             } else {
-//                 this.showAlert('Error: ' + data.error, 'danger');
-//             }
-//         } catch (error) {
-//             this.showAlert('Error starting download: ' + error.message, 'danger');
-//         }
-//     }
-
-//     addDownloadItem(downloadId, url, mode) {
-//         // Hide "no active downloads" message
-//         const noActiveDownloads = document.getElementById('noActiveDownloads');
-//         if (noActiveDownloads) {
-//             noActiveDownloads.style.display = 'none';
-//         }
-
-//         const template = document.getElementById('downloadItemTemplate');
-//         const clone = template.content.cloneNode(true);
-
-//         const downloadItem = clone.querySelector('.download-item');
-//         downloadItem.id = `download-${downloadId}`;
-//         downloadItem.dataset.downloadId = downloadId;
-//         downloadItem.classList.add('downloading');
-
-//         const urlElement = clone.querySelector('.url-text');
-//         urlElement.textContent = this.getFilenameFromUrl(url);
-//         urlElement.title = url;
-
-//         const modeElement = clone.querySelector('.mode-text');
-//         modeElement.textContent = `${mode === 'multi' ? 'Multi-Stream' : 'Single-Stream'} Download`;
-
-//         const statusLine = clone.querySelector('.status-line');
-//         statusLine.classList.add('downloading');
-
-//         const progressBar = clone.querySelector('.progress-bar');
-//         progressBar.classList.add('downloading');
-
-//         // Add event listeners
-//         clone.querySelector('.cancel-download').addEventListener('click', () => {
-//             this.cancelDownload(downloadId);
-//         });
-
-//         clone.querySelector('.view-metrics').addEventListener('click', () => {
-//             this.viewMetrics(downloadId);
-//         });
-
-//         document.getElementById('activeDownloads').appendChild(clone);
-//         this.activeDownloads.set(downloadId, {
-//             url: url,
-//             mode: mode,
-//             element: downloadItem,
-//             status: 'downloading',
-//             lastUpdate: Date.now(),
-//             lastBytes: 0,
-//             speedHistory: []
-//         });
-
-//         this.updateActiveCount();
-//     }
-
-//     updateActiveCount() {
-//         const count = this.activeDownloads.size;
-//         document.getElementById('activeCount').textContent = count;
-//     }
-
-//     async cancelDownload(downloadId) {
-//         try {
-//             const response = await fetch(`/api/downloads/${downloadId}/cancel`, {
-//                 method: 'POST'
-//             });
-
-//             if (response.ok) {
-//                 this.showAlert('Download cancelled', 'warning');
-//             } else {
-//                 const data = await response.json();
-//                 this.showAlert('Error: ' + data.error, 'danger');
-//             }
-//         } catch (error) {
-//             this.showAlert('Error cancelling download: ' + error.message, 'danger');
-//         }
-//     }
-
-//     async viewMetrics(downloadId) {
-//         try {
-//             const response = await fetch(`/api/downloads/${downloadId}/metrics`);
-//             if (response.ok) {
-//                 const metrics = await response.json();
-//                 this.displayMetrics(metrics, downloadId);
-//             } else {
-//                 this.showAlert('Metrics not available yet', 'warning');
-//             }
-//         } catch (error) {
-//             this.showAlert('Error fetching metrics: ' + error.message, 'danger');
-//         }
-//     }
-
-//     displayMetrics(metrics, downloadId) {
-//         const metricsCard = document.getElementById('metricsCard');
-//         const metricsDisplay = document.getElementById('metricsDisplay');
-
-//         let metricsText = '═'.repeat(80) + '\n';
-//         metricsText += '<strong>DOWNLOAD PERFORMANCE METRICS</strong>\n';
-//         metricsText += '═'.repeat(80) + '\n\n';
-
-//         if (metrics.num_streams_used !== undefined) {
-//             metricsText += '<strong>OVERVIEW</strong>\n';
-//             metricsText += '─'.repeat(80) + '\n';
-//             metricsText += `Total Time : ${metrics.total_time_seconds?.toFixed(2) || 'N/A'} seconds\n`;
-//             metricsText += `File Size : ${metrics.total_size_mb?.toFixed(2) || 'N/A'} MB\n`;
-//             metricsText += `Streams Used : ${metrics.num_streams_used || 'N/A'}\n`;
-//             metricsText += `Overall Throughput : ${metrics.throughput_mbps?.toFixed(2) || 'N/A'} Mbps (${metrics.throughput_MBps?.toFixed(2) || 'N/A'} MB/s)\n`;
-//             metricsText += `Avg Speed/Stream : ${metrics.average_speed_per_stream?.toFixed(2) || 'N/A'} MB/s\n\n`;
-
-//             if (metrics.chunk_metrics && metrics.chunk_metrics.length > 0) {
-//                 metricsText += '<strong>STREAM BREAKDOWN</strong>\n';
-//                 metricsText += '─'.repeat(80) + '\n';
-//                 metricsText += `${'Stream'.padEnd(10)} ${'Size (MB)'.padEnd(15)} ${'Time (s)'.padEnd(15)} ${'Speed (MB/s)'.padEnd(15)}\n`;
-//                 metricsText += '─'.repeat(80) + '\n';
-
-//                 metrics.chunk_metrics.forEach(chunk => {
-//                     const streamNum = `#${chunk.chunk_id}`;
-//                     const size = chunk.size_mb?.toFixed(2) || 'N/A';
-//                     const time = chunk.time_seconds?.toFixed(2) || 'N/A';
-//                     const speed = chunk.speed_mbps?.toFixed(2) || 'N/A';
-//                     metricsText += `${streamNum.padEnd(10)} ${size.padEnd(15)} ${time.padEnd(15)} ${speed.padEnd(15)}\n`;
-//                 });
-
-//                 if (metrics.fastest_chunk && metrics.slowest_chunk) {
-//                     metricsText += '\n<strong>STATISTICS</strong>\n';
-//                     metricsText += '─'.repeat(80) + '\n';
-//                     metricsText += `Fastest Stream : #${metrics.fastest_chunk.chunk_id} at ${metrics.fastest_chunk.speed_mbps?.toFixed(2) || 'N/A'} MB/s\n`;
-//                     metricsText += `Slowest Stream : #${metrics.slowest_chunk.chunk_id} at ${metrics.slowest_chunk.speed_mbps?.toFixed(2) || 'N/A'} MB/s\n`;
-//                 }
-//             }
-//         } else {
-//             metricsText += '<strong>OVERVIEW</strong>\n';
-//             metricsText += '─'.repeat(80) + '\n';
-//             metricsText += `Total Time : ${metrics.total_time?.toFixed(2) || 'N/A'} seconds\n`;
-//             metricsText += `File Size : ${metrics.file_size_mb?.toFixed(2) || 'N/A'} MB\n`;
-//             metricsText += `Download Mode : Single-Stream\n`;
-//             metricsText += `Overall Throughput : ${metrics.throughput_mbps?.toFixed(2) || 'N/A'} Mbps (${metrics.throughput_MBps?.toFixed(2) || 'N/A'} MB/s)\n`;
-//         }
-
-//         metricsText += '\n' + '═'.repeat(80);
-
-//         metricsDisplay.innerHTML = metricsText;
-//         metricsCard.classList.remove('d-none');
-//         metricsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-//     }
-
-//     async updateDownloadStatuses() {
-//         if (this.activeDownloads.size === 0) return;
-
-//         for (const [downloadId, info] of this.activeDownloads) {
-//             try {
-//                 const response = await fetch(`/api/downloads/${downloadId}`);
-//                 if (response.ok) {
-//                     const status = await response.json();
-//                     this.updateDownloadUI(downloadId, status);
-
-//                     if (['completed', 'failed', 'cancelled'].includes(status.status) && info.status === 'downloading') {
-//                         info.status = status.status;
-//                         setTimeout(() => {
-//                             this.moveToHistory(downloadId, status);
-//                         }, 3000);
-//                     }
-//                 }
-//             } catch (error) {
-//                 console.error('Error updating download status:', error);
-//             }
-//         }
-//     }
-
-//     updateDownloadUI(downloadId, status) {
-//         const info = this.activeDownloads.get(downloadId);
-//         if (!info) return;
-
-//         const progressBar = info.element.querySelector('.progress-bar');
-//         const speedText = info.element.querySelector('.speed-text');
-//         const statusElement = info.element.querySelector('.status-text');
-//         const statusLine = info.element.querySelector('.status-line');
-//         const progressPercent = info.element.querySelector('.progress-percent');
-
-//         const progress = Math.round(status.progress || 0);
-//         progressBar.style.width = `${progress}%`;
-//         progressPercent.textContent = `${progress}%`;
-
-//         if (!info.speedHistory) info.speedHistory = [];
-
-//         const now = Date.now();
-//         const timeDiff = (now - info.lastUpdate) / 1000;
-//         const bytesDiff = status.downloaded_size - info.lastBytes;
-//         const frontendSpeed = timeDiff > 0 ? (bytesDiff / (1024 * 1024)) / timeDiff : status.speed || 0;
-
-//         const currentSpeed = status.speed > 0 ? status.speed : frontendSpeed;
-
-//         info.speedHistory.push(currentSpeed);
-//         if (info.speedHistory.length > 5) info.speedHistory.shift();
-
-//         const avgSpeed = info.speedHistory.reduce((sum, val) => sum + val, 0) / info.speedHistory.length;
-
-//         if (status.total_size && status.downloaded_size !== undefined) {
-//             const downloadedMB = (status.downloaded_size / (1024 * 1024)).toFixed(2);
-//             const totalMB = (status.total_size / (1024 * 1024)).toFixed(2);
-//             speedText.textContent = status.status === 'downloading' && avgSpeed > 0
-//                 ? `${avgSpeed.toFixed(2)} MB/s • ${downloadedMB}/${totalMB} MB`
-//                 : `${downloadedMB} MB / ${totalMB} MB`;
-//         } else {
-//             speedText.textContent = 'Calculating...';
-//         }
-
-//         info.lastUpdate = now;
-//         info.lastBytes = status.downloaded_size || 0;
-
-//         let statusClass = 'downloading';
-//         let statusText = 'Downloading...';
-//         let iconHtml = '<i class="fas fa-spinner fa-spin"></i>';
-
-//         switch (status.status) {
-//             case 'completed':
-//                 statusClass = 'completed';
-//                 statusText = 'Download completed';
-//                 iconHtml = '<i class="fas fa-check-circle"></i>';
-//                 // Refresh file manager when download completes
-//                 if (this.currentPage === 'files') {
-//                     this.loadFiles();
-//                 }
-//                 break;
-//             case 'failed':
-//                 statusClass = 'failed';
-//                 statusText = `Failed: ${status.error || 'Unknown error'}`;
-//                 iconHtml = '<i class="fas fa-exclamation-circle"></i>';
-//                 break;
-//             case 'cancelled':
-//                 statusClass = 'cancelled';
-//                 statusText = 'Download cancelled';
-//                 iconHtml = '<i class="fas fa-times-circle"></i>';
-//                 break;
-//         }
-
-//         statusElement.textContent = statusText;
-//         statusLine.className = `status-line ${statusClass}`;
-//         statusLine.querySelector('i').outerHTML = iconHtml;
-
-//         progressBar.className = `progress-bar ${statusClass}`;
-//         info.element.className = `download-item ${statusClass}`;
-//     }
-
-//     moveToHistory(downloadId, status) {
-//         const info = this.activeDownloads.get(downloadId);
-//         if (!info) return;
-
-//         info.element.remove();
-//         this.activeDownloads.delete(downloadId);
-
-//         this.updateActiveCount();
-
-//         if (this.activeDownloads.size === 0) {
-//             const noActiveDownloads = document.getElementById('noActiveDownloads');
-//             if (noActiveDownloads) {
-//                 noActiveDownloads.style.display = 'block';
-//             }
-//         }
-
-//         this.addToHistory(downloadId, info.url, info.mode, status);
-//     }
-
-//     addToHistory(downloadId, url, mode, status) {
-//         const historyContainer = document.getElementById('downloadHistory');
-//         const currentContent = historyContainer.innerHTML;
-
-//         if (currentContent.includes('No download history yet')) {
-//             historyContainer.innerHTML = '';
-//         }
-
-//         const template = document.getElementById('downloadItemTemplate');
-//         const clone = template.content.cloneNode(true);
-
-//         const historyItem = clone.querySelector('.download-item');
-//         historyItem.className = `download-item ${status.status}`;
-//         historyItem.id = `history-${downloadId}`;
-
-//         const urlElement = clone.querySelector('.url-text');
-//         urlElement.textContent = this.getFilenameFromUrl(url);
-//         urlElement.title = url;
-
-//         const modeElement = clone.querySelector('.mode-text');
-//         const statusCapitalized = status.status.charAt(0).toUpperCase() + status.status.slice(1);
-//         modeElement.textContent = `${mode === 'multi' ? 'Multi-Stream' : 'Single-Stream'} • ${statusCapitalized}`;
-
-//         const statusElement = clone.querySelector('.status-text');
-//         let statusText = statusCapitalized;
-//         if (status.status === 'failed' && status.error) {
-//             statusText = `Failed: ${status.error}`;
-//         }
-//         statusElement.textContent = statusText;
-
-//         const statusLine = clone.querySelector('.status-line');
-//         statusLine.className = `status-line ${status.status}`;
-
-//         const icon = statusLine.querySelector('i');
-//         if (status.status === 'completed') {
-//             icon.className = 'fas fa-check-circle';
-//         } else if (status.status === 'failed') {
-//             icon.className = 'fas fa-exclamation-circle';
-//         } else {
-//             icon.className = 'fas fa-times-circle';
-//         }
-
-//         const progressBar = clone.querySelector('.progress-bar');
-//         progressBar.style.width = '100%';
-//         progressBar.className = `progress-bar ${status.status}`;
-
-//         const progressPercent = clone.querySelector('.progress-percent');
-//         progressPercent.textContent = '100%';
-
-//         const speedText = clone.querySelector('.speed-text');
-//         if (status.total_size) {
-//             const totalMB = (status.total_size / (1024 * 1024)).toFixed(2);
-//             speedText.textContent = `${totalMB} MB`;
-//         } else if (status.metrics && status.metrics.total_time_seconds) {
-//             speedText.textContent = `${status.metrics.total_time_seconds.toFixed(2)}s`;
-//         } else if (status.metrics && status.metrics.total_time) {
-//             speedText.textContent = `${status.metrics.total_time.toFixed(2)}s`;
-//         } else {
-//             speedText.textContent = 'Completed';
-//         }
-
-//         const cancelBtn = clone.querySelector('.cancel-download');
-//         cancelBtn.remove();
-
-//         const metricsBtn = clone.querySelector('.view-metrics');
-//         metricsBtn.addEventListener('click', () => {
-//             this.viewMetrics(downloadId);
-//         });
-
-//         if (status.status === 'completed' && status.filename) {
-//             const openBtn = document.createElement('button');
-//             openBtn.className = 'action-btn success';
-//             openBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
-//             openBtn.title = 'Open File';
-//             openBtn.onclick = () => {
-//                 this.openFile(status.filename);
-//             };
-//             metricsBtn.parentNode.appendChild(openBtn);
-//         }
-
-//         historyContainer.appendChild(clone);
-//     }
-
-//     // File Manager Methods
-//     async loadFiles() {
-//         try {
-//             const response = await fetch('/api/files');
-//             if (response.ok) {
-//                 const files = await response.json();
-//                 console.log('Loaded files:', files); // Debug log
-//                 this.displayFiles(files);
-//             } else {
-//                 this.showAlert('Error loading files', 'danger');
-//             }
-//         } catch (error) {
-//             console.error('Error loading files:', error);
-//             this.showAlert('Error loading files: ' + error.message, 'danger');
-//         }
-//     }
-
-//     displayFiles(files) {
-//         const fileManager = document.getElementById('fileManager');
-//         const fileCount = document.getElementById('fileCount');
-        
-//         fileCount.textContent = files.length;
-
-//         if (files.length === 0) {
-//             fileManager.innerHTML = `
-//                 <div class="empty-state">
-//                     <i class="fas fa-folder-open"></i>
-//                     <p>No files downloaded yet</p>
-//                     <small class="text-muted">Downloaded files will appear here</small>
-//                 </div>
-//             `;
-//             return;
-//         }
-
-//         fileManager.innerHTML = '';
-//         const template = document.getElementById('fileItemTemplate');
-
-//         files.forEach(file => {
-//             const clone = template.content.cloneNode(true);
-//             const fileItem = clone.querySelector('.file-item');
-            
-//             // Set file name
-//             const fileName = clone.querySelector('.file-name');
-//             fileName.textContent = file.name;
-//             fileName.title = file.name;
-            
-//             // Set file size
-//             const fileSize = clone.querySelector('.file-size');
-//             fileSize.textContent = this.formatFileSize(file.size);
-            
-//             // Set file date with proper debugging
-//             const fileDate = clone.querySelector('.file-date');
-//             console.log('File timestamp:', file.name, file.modified, typeof file.modified); // Debug log
-//             fileDate.textContent = this.formatFileDate(file.modified);
-            
-//             // Set file type icon
-//             const fileIcon = clone.querySelector('.file-icon i');
-//             const fileType = this.getFileType(file.name);
-//             fileIcon.className = this.getFileIcon(fileType);
-//             fileItem.classList.add(`file-${fileType}`);
-            
-//             // Add event listeners
-//             clone.querySelector('.open-file').addEventListener('click', () => {
-//                 this.openFile(file.name);
-//             });
-            
-//             clone.querySelector('.download-file').addEventListener('click', () => {
-//                 this.downloadFile(file.name);
-//             });
-            
-//             clone.querySelector('.delete-file').addEventListener('click', () => {
-//                 this.deleteFile(file.name);
-//             });
-
-//             fileManager.appendChild(clone);
-//         });
-//     }
-
-//     getFileType(filename) {
-//         const extension = filename.split('.').pop().toLowerCase();
-//         const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
-//         const videoTypes = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'];
-//         const audioTypes = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'wma'];
-//         const documentTypes = ['pdf', 'doc', 'docx', 'txt', 'rtf'];
-//         const archiveTypes = ['zip', 'rar', '7z', 'tar', 'gz'];
-//         const executableTypes = ['exe', 'msi', 'dmg', 'pkg', 'deb', 'rpm'];
-
-//         if (imageTypes.includes(extension)) return 'image';
-//         if (videoTypes.includes(extension)) return 'video';
-//         if (audioTypes.includes(extension)) return 'audio';
-//         if (documentTypes.includes(extension)) return 'document';
-//         if (archiveTypes.includes(extension)) return 'zip';
-//         if (executableTypes.includes(extension)) return 'executable';
-//         return 'file';
-//     }
-
-//     getFileIcon(fileType) {
-//         const icons = {
-//             'image': 'fas fa-file-image',
-//             'video': 'fas fa-file-video',
-//             'audio': 'fas fa-file-audio',
-//             'document': 'fas fa-file-pdf',
-//             'zip': 'fas fa-file-archive',
-//             'executable': 'fas fa-cog',
-//             'file': 'fas fa-file'
-//         };
-//         return icons[fileType] || icons.file;
-//     }
-
-//     formatFileSize(bytes) {
-//         if (bytes === 0) return '0 Bytes';
-//         const k = 1024;
-//         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-//         const i = Math.floor(Math.log(bytes) / Math.log(k));
-//         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-//     }
-
-//     formatFileDate(timestamp) {
-//         try {
-//             // If timestamp is in seconds (common from os.path.getmtime), convert to milliseconds
-//             let date;
-            
-//             if (timestamp > 10000000000) {
-//                 // Likely already in milliseconds
-//                 date = new Date(timestamp);
-//             } else {
-//                 // Likely in seconds, convert to milliseconds
-//                 date = new Date(timestamp * 1000);
-//             }
-            
-//             // Validate the date
-//             if (isNaN(date.getTime())) {
-//                 console.warn('Invalid timestamp:', timestamp);
-//                 return 'Invalid date';
-//             }
-            
-//             // Format: "YYYY-MM-DD HH:MM:SS"
-//             const year = date.getFullYear();
-//             const month = String(date.getMonth() + 1).padStart(2, '0');
-//             const day = String(date.getDate()).padStart(2, '0');
-//             const hours = String(date.getHours()).padStart(2, '0');
-//             const minutes = String(date.getMinutes()).padStart(2, '0');
-//             const seconds = String(date.getSeconds()).padStart(2, '0');
-            
-//             return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-//         } catch (error) {
-//             console.error('Error formatting date:', error);
-//             return 'Date error';
-//         }
-//     }
-
-//     async deleteFile(filename) {
-//         if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
-//             return;
-//         }
-
-//         try {
-//             // Properly encode the filename for URL
-//             const encodedFilename = encodeURIComponent(filename);
-//             const response = await fetch(`/api/files/${encodedFilename}`, {
-//                 method: 'DELETE'
-//             });
-
-//             if (response.ok) {
-//                 this.showAlert('File deleted successfully', 'success');
-//                 this.loadFiles(); // Refresh the file list
-//             } else {
-//                 const data = await response.json();
-//                 this.showAlert('Error: ' + data.error, 'danger');
-//             }
-//         } catch (error) {
-//             this.showAlert('Error deleting file: ' + error.message, 'danger');
-//         }
-//     }
-
-//     openDownloadsFolder() {
-//         window.open('/downloads/', '_blank');
-//     }
-
-//     openFile(filename) {
-//         // Create a temporary link to trigger automatic download/open
-//         const link = document.createElement('a');
-//         link.href = `/downloads/${encodeURIComponent(filename)}`;
-//         link.download = filename; // Fallback for browsers that don't support inline opening
-//         document.body.appendChild(link);
-//         link.click();
-//         document.body.removeChild(link);
-//     }
-
-//     downloadFile(filename) {
-//         const link = document.createElement('a');
-//         link.href = `/downloads/${encodeURIComponent(filename)}`;
-//         link.download = filename;
-//         document.body.appendChild(link);
-//         link.click();
-//         document.body.removeChild(link);
-//     }
-
-//     startUpdateInterval() {
-//         this.updateInterval = setInterval(() => {
-//             this.updateDownloadStatuses();
-//         }, 1000);
-//     }
-
-//     showAlert(message, type) {
-//         // Remove existing alerts
-//         const existingAlerts = document.querySelectorAll('.alert');
-//         existingAlerts.forEach(alert => {
-//             if (alert.parentNode) {
-//                 alert.remove();
-//             }
-//         });
-
-//         // Create new alert
-//         const alert = document.createElement('div');
-//         alert.className = `alert alert-${type}`;
-
-//         let icon = 'info-circle';
-//         if (type === 'success') icon = 'check-circle';
-//         if (type === 'danger') icon = 'exclamation-circle';
-//         if (type === 'warning') icon = 'exclamation-triangle';
-
-//         alert.innerHTML = `
-//             <i class="fas fa-${icon}"></i>
-//             <span>${message}</span>
-//         `;
-
-//         // Add close button
-//         const closeBtn = document.createElement('button');
-//         closeBtn.type = 'button';
-//         closeBtn.className = 'btn-close';
-//         closeBtn.innerHTML = '×';
-//         closeBtn.onclick = () => {
-//             if (alert.parentNode) {
-//                 alert.remove();
-//             }
-//         };
-//         alert.appendChild(closeBtn);
-
-//         // Find the current active page and insert alert there
-//         const activePage = document.querySelector('.page-section.active');
-//         if (activePage) {
-//             const pageHeader = activePage.querySelector('.page-header');
-//             if (pageHeader && pageHeader.nextSibling) {
-//                 activePage.insertBefore(alert, pageHeader.nextSibling);
-//             } else {
-//                 activePage.appendChild(alert);
-//             }
-//         } else {
-//             // Fallback: insert at top of main content
-//             const mainContent = document.querySelector('.main-content');
-//             if (mainContent) {
-//                 mainContent.insertBefore(alert, mainContent.firstChild);
-//             }
-//         }
-
-//         // Auto-remove after 5 seconds
-//         setTimeout(() => {
-//             if (alert.parentNode) {
-//                 alert.remove();
-//             }
-//         }, 5000);
-//     }
-
-//     getFilenameFromUrl(url) {
-//         try {
-//             const urlObj = new URL(url);
-//             const pathname = urlObj.pathname;
-//             const filename = pathname.substring(pathname.lastIndexOf('/') + 1);
-//             return filename || url;
-//         } catch (e) {
-//             return url;
-//         }
-//     }
-// }
-
-// document.addEventListener('DOMContentLoaded', () => {
-//     new DownloadManager();
-// });
-// static/app.js - Professional Download Manager with SMOOTH ANIMATIONS
+// app.js - Complete with Real RL Integration
 class DownloadManager {
     constructor() {
         this.activeDownloads = new Map();
         this.updateInterval = null;
         this.currentPage = 'downloads';
         this.animationFrameId = null;
+        this.rlStats = {
+            qTableSize: 0,
+            explorationRate: 0,
+            currentConnections: 8,
+            learningProgress: 0
+        };
         this.init();
     }
 
@@ -760,6 +26,11 @@ class DownloadManager {
             radio.addEventListener('change', () => {
                 this.toggleStreamsControl();
             });
+        });
+
+        // RL mode toggle
+        document.getElementById('rlMode').addEventListener('change', () => {
+            this.toggleRLMode();
         });
 
         // Close metrics handler
@@ -785,9 +56,56 @@ class DownloadManager {
             });
         });
 
+        // RL Stats button
+        document.getElementById('showRlStats').addEventListener('click', () => {
+            this.showRLStats();
+        });
+
+        // RL Reset button
+        document.getElementById('resetRlLearning').addEventListener('click', () => {
+            this.resetRLLearning();
+        });
+
         this.toggleStreamsControl();
+        this.toggleRLMode();
         this.startUpdateInterval();
         this.loadFiles();
+        this.loadRLStats(); // Load initial RL stats
+    }
+
+    async loadRLStats() {
+        try {
+            const response = await fetch('/api/rl/stats');
+            if (response.ok) {
+                this.rlStats = await response.json();
+                this.updateRLGlobalDisplay();
+            }
+        } catch (error) {
+            console.log('Could not load RL stats:', error);
+        }
+    }
+
+    updateRLGlobalDisplay() {
+        // Update RL indicator in header if needed
+        const rlControls = document.querySelector('.rl-controls');
+        if (rlControls && this.rlStats.q_table_size > 0) {
+            const existingBadge = rlControls.querySelector('.rl-global-badge');
+            if (!existingBadge) {
+                const badge = document.createElement('span');
+                badge.className = 'rl-global-badge';
+                badge.style.background = 'var(--rl-color)';
+                badge.style.color = 'white';
+                badge.style.padding = '2px 8px';
+                badge.style.borderRadius = '10px';
+                badge.style.fontSize = '11px';
+                badge.style.fontWeight = '600';
+                badge.style.marginLeft = '8px';
+                badge.textContent = `🤖 ${this.rlStats.q_table_size} states`;
+                rlControls.appendChild(badge);
+            } else {
+                existingBadge.textContent = `🤖 ${this.rlStats.q_table_size} states`;
+            }
+        }
     }
 
     switchPage(page) {
@@ -809,18 +127,52 @@ class DownloadManager {
         if (page === 'files') {
             this.loadFiles();
         }
+        
+        // Load RL stats if switching to downloads
+        if (page === 'downloads') {
+            this.loadRLStats();
+        }
     }
 
     toggleStreamsControl() {
         const mode = document.querySelector('input[name="mode"]:checked').value;
         const streamsInput = document.getElementById('numStreams');
-        streamsInput.disabled = mode === 'single';
+        const rlModeCheckbox = document.getElementById('rlMode');
+        
+        if (mode === 'single') {
+            streamsInput.disabled = true;
+            rlModeCheckbox.disabled = true;
+            rlModeCheckbox.checked = false;
+            this.toggleRLMode();
+        } else {
+            streamsInput.disabled = false;
+            rlModeCheckbox.disabled = false;
+        }
+    }
+
+    toggleRLMode() {
+        const rlMode = document.getElementById('rlMode').checked;
+        const streamsInput = document.getElementById('numStreams');
+        const rlInfo = document.getElementById('rlInfo');
+        const mode = document.querySelector('input[name="mode"]:checked').value;
+        
+        if (rlMode && mode === 'multi') {
+            streamsInput.disabled = true;
+            streamsInput.value = '8'; // Default for RL
+            rlInfo.classList.remove('d-none');
+            console.log("🤖 RL Mode: Enabled - Stream count will be optimized automatically");
+        } else {
+            streamsInput.disabled = (mode === 'single');
+            rlInfo.classList.add('d-none');
+            console.log("🤖 RL Mode: Disabled - Using manual stream control");
+        }
     }
 
     async startDownload() {
         const url = document.getElementById('url').value;
         const mode = document.querySelector('input[name="mode"]:checked').value;
         const numStreams = document.getElementById('numStreams').value;
+        const useRL = document.getElementById('rlMode').checked;
 
         if (!url) {
             this.showAlert('Please enter a URL', 'danger');
@@ -841,16 +193,17 @@ class DownloadManager {
                 body: JSON.stringify({
                     url: url,
                     mode: mode,
-                    num_streams: parseInt(numStreams)
+                    num_streams: parseInt(numStreams),
+                    use_rl: useRL
                 })
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                this.addDownloadItem(data.download_id, url, mode);
+                this.addDownloadItem(data.download_id, url, mode, useRL);
                 document.getElementById('url').value = '';
-                this.showAlert('Download started successfully', 'success');
+                this.showAlert('Download started successfully' + (useRL ? ' (RL Optimized)' : ''), 'success');
             } else {
                 this.showAlert('Error: ' + data.error, 'danger');
             }
@@ -859,7 +212,7 @@ class DownloadManager {
         }
     }
 
-    addDownloadItem(downloadId, url, mode) {
+    addDownloadItem(downloadId, url, mode, useRL) {
         // Hide "no active downloads" message
         const noActiveDownloads = document.getElementById('noActiveDownloads');
         if (noActiveDownloads) {
@@ -879,14 +232,39 @@ class DownloadManager {
         urlElement.title = url;
 
         const modeElement = clone.querySelector('.mode-text');
-        modeElement.textContent = `${mode === 'multi' ? 'Multi-Stream' : 'Single-Stream'} Download`;
+        let modeText = `${mode === 'multi' ? 'Multi-Stream' : 'Single-Stream'} Download`;
+        if (useRL && mode === 'multi') {
+            modeText += ' 🤖 RL';
+            downloadItem.classList.add('rl-optimized');
+        }
+        modeElement.textContent = modeText;
 
         const statusLine = clone.querySelector('.status-line');
         statusLine.classList.add('downloading');
 
         const progressBar = clone.querySelector('.progress-bar');
         progressBar.classList.add('downloading');
-        progressBar.style.width = '0%'; // Start at 0%
+        progressBar.style.width = '0%';
+
+        // Add enhanced RL info section for RL-optimized downloads
+        if (useRL && mode === 'multi') {
+            const progressContainer = clone.querySelector('.progress-container');
+            const rlInfoDiv = document.createElement('div');
+            rlInfoDiv.className = 'rl-info-section';
+            rlInfoDiv.innerHTML = `
+                <div class="rl-status">
+                    <i class="fas fa-robot"></i>
+                    <span class="rl-text">🤖 RL Initializing network analysis...</span>
+                    <span class="rl-streams">Streams: <strong>1</strong></span>
+                    <span class="rl-throughput">0.0 Mbps</span>
+                    <span class="rl-learning" title="Learning progress">📊 0 states</span>
+                </div>
+                <div class="rl-decision-history" style="margin-top: 8px; font-size: 11px; color: #666;">
+                    <span>Last decision: Analyzing network...</span>
+                </div>
+            `;
+            progressContainer.parentNode.insertBefore(rlInfoDiv, progressContainer.nextSibling);
+        }
 
         // Add event listeners
         clone.querySelector('.cancel-download').addEventListener('click', () => {
@@ -901,6 +279,7 @@ class DownloadManager {
         this.activeDownloads.set(downloadId, {
             url: url,
             mode: mode,
+            useRL: useRL,
             element: downloadItem,
             status: 'downloading',
             lastUpdate: Date.now(),
@@ -910,8 +289,19 @@ class DownloadManager {
                 currentProgress: 0,
                 targetProgress: 0,
                 startTime: null,
-                duration: 1000, // 1 second animation
+                duration: 1000,
                 running: false
+            },
+            rlInfo: {
+                currentStreams: 1,
+                lastStreamCount: 1,
+                lastDecision: 'Initializing RL analysis...',
+                throughput: 0,
+                rtt: 0,
+                packetLoss: 0,
+                explorationRate: 0.3,
+                learningProgress: 0,
+                decisionHistory: []
             }
         });
 
@@ -960,6 +350,15 @@ class DownloadManager {
 
         let metricsText = '═'.repeat(80) + '\n';
         metricsText += '<strong>DOWNLOAD PERFORMANCE METRICS</strong>\n';
+        
+        // Check if RL was used
+        const downloadInfo = this.activeDownloads.get(downloadId);
+        const usedRL = downloadInfo && downloadInfo.useRL;
+        
+        if (usedRL) {
+            metricsText += '🤖 REINFORCEMENT LEARNING OPTIMIZED\n';
+        }
+        
         metricsText += '═'.repeat(80) + '\n\n';
 
         if (metrics.num_streams_used !== undefined) {
@@ -968,6 +367,9 @@ class DownloadManager {
             metricsText += `Total Time : ${metrics.total_time_seconds?.toFixed(2) || 'N/A'} seconds\n`;
             metricsText += `File Size : ${metrics.total_size_mb?.toFixed(2) || 'N/A'} MB\n`;
             metricsText += `Streams Used : ${metrics.num_streams_used || 'N/A'}\n`;
+            if (usedRL) {
+                metricsText += `Optimization : 🤖 RL Adaptive\n`;
+            }
             metricsText += `Overall Throughput : ${metrics.throughput_mbps?.toFixed(2) || 'N/A'} Mbps (${metrics.throughput_MBps?.toFixed(2) || 'N/A'} MB/s)\n`;
             metricsText += `Avg Speed/Stream : ${metrics.average_speed_per_stream?.toFixed(2) || 'N/A'} MB/s\n\n`;
 
@@ -991,6 +393,17 @@ class DownloadManager {
                     metricsText += `Fastest Stream : #${metrics.fastest_chunk.chunk_id} at ${metrics.fastest_chunk.speed_mbps?.toFixed(2) || 'N/A'} MB/s\n`;
                     metricsText += `Slowest Stream : #${metrics.slowest_chunk.chunk_id} at ${metrics.slowest_chunk.speed_mbps?.toFixed(2) || 'N/A'} MB/s\n`;
                 }
+            }
+
+            // Add RL-specific metrics if available
+            if (usedRL && metrics.rl_info) {
+                metricsText += '\n<strong>RL OPTIMIZATION</strong>\n';
+                metricsText += '─'.repeat(80) + '\n';
+                metricsText += `Final Streams : ${metrics.rl_info.final_streams || 'N/A'}\n`;
+                metricsText += `Q-Table Size : ${metrics.rl_info.q_table_size || 'N/A'} states\n`;
+                metricsText += `Exploration Rate : ${((metrics.rl_info.exploration_rate || 0) * 100).toFixed(1)}%\n`;
+                metricsText += `Average Reward : ${metrics.rl_info.average_reward?.toFixed(3) || 'N/A'}\n`;
+                metricsText += `Adaptive Mode : Active Learning\n`;
             }
         } else {
             metricsText += '<strong>OVERVIEW</strong>\n';
@@ -1031,7 +444,6 @@ class DownloadManager {
         }
     }
 
-    // 🆕 SMOOTH ANIMATION VERSION
     updateDownloadUI(downloadId, status) {
         const info = this.activeDownloads.get(downloadId);
         if (!info) return;
@@ -1056,9 +468,132 @@ class DownloadManager {
         // Update speed and status immediately (no animation needed)
         this.updateSpeedText(info, status, speedText);
         this.updateStatus(info, status, statusElement, statusLine, progressBar);
+        
+        // Update RL info if this is an RL-optimized download
+        if (info.useRL && info.mode === 'multi') {
+            this.updateRLInfo(downloadId, status);
+        }
     }
 
-    // 🆕 SMOOTH ANIMATION ENGINE
+    updateRLInfo(downloadId, status) {
+        const info = this.activeDownloads.get(downloadId);
+        if (!info || !info.useRL) return;
+
+        const rlInfoSection = info.element.querySelector('.rl-info-section');
+        if (!rlInfoSection) return;
+
+        // Get actual RL metrics from backend
+        fetch('/api/rl/stats')
+            .then(response => response.json())
+            .then(rlStats => {
+                // Update RL info with REAL data
+                const currentStreams = rlStats.current_connections || info.rlInfo.currentStreams;
+                const explorationRate = (rlStats.exploration_rate * 100).toFixed(1);
+                const qTableSize = rlStats.q_table_size || 0;
+                const avgReward = rlStats.average_reward ? rlStats.average_reward.toFixed(3) : '0.000';
+                const lastReward = rlStats.last_reward ? rlStats.last_reward.toFixed(3) : '0.000';
+                
+                info.rlInfo.currentStreams = currentStreams;
+                info.rlInfo.explorationRate = explorationRate;
+                info.rlInfo.learningProgress = qTableSize;
+                
+                // Update throughput from actual download speed
+                if (status.speed > 0) {
+                    info.rlInfo.throughput = status.speed * 8; // Convert MB/s to Mbps
+                }
+
+                // Create informative RL status based on REAL learning progress
+                let statusText = '🤖 RL Optimizing';
+                let statusColor = '#10b981';
+                
+                if (rlStats.exploration_rate > 0.4) {
+                    statusText = '🤖 RL Exploring (Learning)';
+                    statusColor = '#f59e0b';
+                } else if (rlStats.exploration_rate > 0.2) {
+                    statusText = '🤖 RL Adapting';
+                    statusColor = '#3b82f6';
+                } else if (qTableSize > 100) {
+                    statusText = '🤖 RL Expert Mode';
+                    statusColor = '#8b5cf6';
+                }
+
+                // Use ACTUAL RL decision information
+                let lastDecision = 'Analyzing network...';
+                
+                // Determine decision based on actual RL state changes
+                if (info.rlInfo.lastStreamCount && currentStreams !== info.rlInfo.lastStreamCount) {
+                    const change = currentStreams - info.rlInfo.lastStreamCount;
+                    if (change > 0) {
+                        lastDecision = `Increased to ${currentStreams} streams`;
+                    } else if (change < 0) {
+                        lastDecision = `Decreased to ${currentStreams} streams`;
+                    }
+                } else if (currentStreams > 1) {
+                    lastDecision = `Maintaining ${currentStreams} streams`;
+                }
+                
+                info.rlInfo.lastDecision = lastDecision;
+
+                // Add to decision history for real changes only
+                if (info.rlInfo.lastStreamCount !== currentStreams) {
+                    info.rlInfo.decisionHistory.push({
+                        time: new Date().toLocaleTimeString(),
+                        decision: lastDecision,
+                        streams: currentStreams,
+                        reward: lastReward
+                    });
+                    
+                    // Keep only last 3 decisions
+                    if (info.rlInfo.decisionHistory.length > 3) {
+                        info.rlInfo.decisionHistory.shift();
+                    }
+                    
+                    // Add pulse animation for REAL RL decisions
+                    rlInfoSection.classList.add('rl-decision');
+                    setTimeout(() => {
+                        rlInfoSection.classList.remove('rl-decision');
+                    }, 600);
+                }
+
+                info.rlInfo.lastStreamCount = currentStreams;
+
+                // Update display with REAL data
+                const rlText = rlInfoSection.querySelector('.rl-text');
+                const rlStreams = rlInfoSection.querySelector('.rl-streams strong');
+                const rlThroughput = rlInfoSection.querySelector('.rl-throughput');
+                const rlLearning = rlInfoSection.querySelector('.rl-learning');
+                const decisionHistory = rlInfoSection.querySelector('.rl-decision-history');
+                
+                if (rlText) {
+                    rlText.textContent = statusText;
+                    rlText.style.color = statusColor;
+                }
+                if (rlStreams) rlStreams.textContent = currentStreams;
+                if (rlThroughput) rlThroughput.textContent = ` | ${info.rlInfo.throughput.toFixed(1)} Mbps`;
+                if (rlLearning) {
+                    rlLearning.textContent = `📊 ${qTableSize} states`;
+                    rlLearning.title = `Q-table: ${qTableSize} states\nAvg Reward: ${avgReward}\nLast Reward: ${lastReward}\nExplore: ${explorationRate}%`;
+                }
+
+                // Show decision history if we have any
+                if (info.rlInfo.decisionHistory.length > 0) {
+                    decisionHistory.innerHTML = info.rlInfo.decisionHistory.map(decision => 
+                        `<div style="margin-bottom: 2px; font-size: 10px; font-family: 'JetBrains Mono', monospace;">
+                            ${decision.time}: ${decision.decision} (Reward: ${decision.reward})
+                         </div>`
+                    ).join('');
+                } else {
+                    decisionHistory.innerHTML = `<span>Last decision: ${lastDecision} (Reward: ${lastReward})</span>`;
+                }
+            })
+            .catch(error => {
+                console.log('Could not fetch RL stats:', error);
+                // Fallback: show basic info without backend data
+                const rlStreams = rlInfoSection.querySelector('.rl-streams strong');
+                if (rlStreams) rlStreams.textContent = info.rlInfo.currentStreams;
+            });
+    }
+
     animateProgressBar(info, progressBar, progressPercent) {
         const now = performance.now();
         
@@ -1160,6 +695,11 @@ class DownloadManager {
 
         progressBar.className = `progress-bar ${statusClass}`;
         info.element.className = `download-item ${statusClass}`;
+        
+        // Add RL indicator for RL-optimized downloads
+        if (info.useRL && info.mode === 'multi') {
+            info.element.classList.add('rl-optimized');
+        }
     }
 
     moveToHistory(downloadId, status) {
@@ -1178,10 +718,10 @@ class DownloadManager {
             }
         }
 
-        this.addToHistory(downloadId, info.url, info.mode, status);
+        this.addToHistory(downloadId, info.url, info.mode, status, info.useRL);
     }
 
-    addToHistory(downloadId, url, mode, status) {
+    addToHistory(downloadId, url, mode, status, useRL) {
         const historyContainer = document.getElementById('downloadHistory');
         const currentContent = historyContainer.innerHTML;
 
@@ -1194,6 +734,9 @@ class DownloadManager {
 
         const historyItem = clone.querySelector('.download-item');
         historyItem.className = `download-item ${status.status}`;
+        if (useRL && mode === 'multi') {
+            historyItem.classList.add('rl-optimized');
+        }
         historyItem.id = `history-${downloadId}`;
 
         const urlElement = clone.querySelector('.url-text');
@@ -1202,7 +745,11 @@ class DownloadManager {
 
         const modeElement = clone.querySelector('.mode-text');
         const statusCapitalized = status.status.charAt(0).toUpperCase() + status.status.slice(1);
-        modeElement.textContent = `${mode === 'multi' ? 'Multi-Stream' : 'Single-Stream'} • ${statusCapitalized}`;
+        let modeText = `${mode === 'multi' ? 'Multi-Stream' : 'Single-Stream'} • ${statusCapitalized}`;
+        if (useRL && mode === 'multi') {
+            modeText += ' 🤖 RL';
+        }
+        modeElement.textContent = modeText;
 
         const statusElement = clone.querySelector('.status-text');
         let statusText = statusCapitalized;
@@ -1264,195 +811,104 @@ class DownloadManager {
         historyContainer.appendChild(clone);
     }
 
-    // File Manager Methods
-    async loadFiles() {
+    async showRLStats() {
         try {
-            const response = await fetch('/api/files');
+            const response = await fetch('/api/rl/stats');
             if (response.ok) {
-                const files = await response.json();
-                console.log('Loaded files:', files);
-                this.displayFiles(files);
+                const stats = await response.json();
+                this.displayRLStats(stats);
             } else {
-                this.showAlert('Error loading files', 'danger');
+                this.showAlert('Error fetching RL stats', 'warning');
             }
         } catch (error) {
-            console.error('Error loading files:', error);
-            this.showAlert('Error loading files: ' + error.message, 'danger');
+            this.showAlert('Error fetching RL stats: ' + error.message, 'danger');
         }
     }
 
-    displayFiles(files) {
-        const fileManager = document.getElementById('fileManager');
-        const fileCount = document.getElementById('fileCount');
+    displayRLStats(stats) {
+        const metricsCard = document.getElementById('metricsCard');
+        const metricsDisplay = document.getElementById('metricsDisplay');
+
+        // Calculate learning progress percentage (simplified)
+        const maxStates = 1000; // Theoretical maximum
+        const learningProgress = Math.min(100, (stats.q_table_size / maxStates) * 100);
+
+        let metricsText = '═'.repeat(80) + '\n';
+        metricsText += '<strong>🤖 REINFORCEMENT LEARNING STATISTICS</strong>\n';
+        metricsText += '═'.repeat(80) + '\n\n';
         
-        fileCount.textContent = files.length;
+        metricsText += '<strong>LEARNING PROGRESS</strong>\n';
+        metricsText += '─'.repeat(80) + '\n';
+        metricsText += `Q-Table Size : ${stats.q_table_size} states learned\n`;
+        metricsText += `Learning Progress : ${learningProgress.toFixed(1)}%\n`;
+        metricsText += `Current Connections : ${stats.current_connections}\n`;
+        metricsText += `Exploration Rate : ${(stats.exploration_rate * 100).toFixed(1)}%\n`;
+        metricsText += `Metrics History : ${stats.metrics_history_size} entries\n`;
+        metricsText += `State History : ${stats.state_history_size} steps\n`;
+        metricsText += `Last Reward : ${stats.last_reward.toFixed(3)}\n`;
+        metricsText += `Average Reward : ${stats.average_reward?.toFixed(3) || '0.000'}\n\n`;
 
-        if (files.length === 0) {
-            fileManager.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-folder-open"></i>
-                    <p>No files downloaded yet</p>
-                    <small class="text-muted">Downloaded files will appear here</small>
-                </div>
-            `;
-            return;
+        metricsText += '<strong>LEARNING INTERPRETATION</strong>\n';
+        metricsText += '─'.repeat(80) + '\n';
+        if (stats.exploration_rate > 0.4) {
+            metricsText += '• 🔍 <strong>Exploration Phase</strong>: Actively learning new network patterns\n';
+        } else if (stats.exploration_rate > 0.2) {
+            metricsText += '• ⚡ <strong>Adaptation Phase</strong>: Balancing exploration and exploitation\n';
+        } else {
+            metricsText += '• 🎯 <strong>Expert Phase</strong>: Using learned knowledge effectively\n';
         }
-
-        fileManager.innerHTML = '';
-        const template = document.getElementById('fileItemTemplate');
-
-        files.forEach(file => {
-            const clone = template.content.cloneNode(true);
-            const fileItem = clone.querySelector('.file-item');
-            
-            // Set file name
-            const fileName = clone.querySelector('.file-name');
-            fileName.textContent = file.name;
-            fileName.title = file.name;
-            
-            // Set file size
-            const fileSize = clone.querySelector('.file-size');
-            fileSize.textContent = this.formatFileSize(file.size);
-            
-            // Set file date
-            const fileDate = clone.querySelector('.file-date');
-            console.log('File timestamp:', file.name, file.modified, typeof file.modified);
-            fileDate.textContent = this.formatFileDate(file.modified);
-            
-            // Set file type icon
-            const fileIcon = clone.querySelector('.file-icon i');
-            const fileType = this.getFileType(file.name);
-            fileIcon.className = this.getFileIcon(fileType);
-            fileItem.classList.add(`file-${fileType}`);
-            
-            // Add event listeners
-            clone.querySelector('.open-file').addEventListener('click', () => {
-                this.openFile(file.name);
-            });
-            
-            clone.querySelector('.download-file').addEventListener('click', () => {
-                this.downloadFile(file.name);
-            });
-            
-            clone.querySelector('.delete-file').addEventListener('click', () => {
-                this.deleteFile(file.name);
-            });
-
-            fileManager.appendChild(clone);
-        });
-    }
-
-    getFileType(filename) {
-        const extension = filename.split('.').pop().toLowerCase();
-        const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
-        const videoTypes = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'];
-        const audioTypes = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'wma'];
-        const documentTypes = ['pdf', 'doc', 'docx', 'txt', 'rtf'];
-        const archiveTypes = ['zip', 'rar', '7z', 'tar', 'gz'];
-        const executableTypes = ['exe', 'msi', 'dmg', 'pkg', 'deb', 'rpm'];
-
-        if (imageTypes.includes(extension)) return 'image';
-        if (videoTypes.includes(extension)) return 'video';
-        if (audioTypes.includes(extension)) return 'audio';
-        if (documentTypes.includes(extension)) return 'document';
-        if (archiveTypes.includes(extension)) return 'zip';
-        if (executableTypes.includes(extension)) return 'executable';
-        return 'file';
-    }
-
-    getFileIcon(fileType) {
-        const icons = {
-            'image': 'fas fa-file-image',
-            'video': 'fas fa-file-video',
-            'audio': 'fas fa-file-audio',
-            'document': 'fas fa-file-pdf',
-            'zip': 'fas fa-file-archive',
-            'executable': 'fas fa-cog',
-            'file': 'fas fa-file'
-        };
-        return icons[fileType] || icons.file;
-    }
-
-    formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    formatFileDate(timestamp) {
-        try {
-            let date;
-            
-            if (timestamp > 10000000000) {
-                date = new Date(timestamp);
-            } else {
-                date = new Date(timestamp * 1000);
-            }
-            
-            if (isNaN(date.getTime())) {
-                console.warn('Invalid timestamp:', timestamp);
-                return 'Invalid date';
-            }
-            
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const seconds = String(date.getSeconds()).padStart(2, '0');
-            
-            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-        } catch (error) {
-            console.error('Error formatting date:', error);
-            return 'Date error';
+        
+        if (stats.q_table_size < 50) {
+            metricsText += '• 📚 <strong>Beginner Level</strong>: Building initial knowledge base\n';
+        } else if (stats.q_table_size < 200) {
+            metricsText += '• 🎓 <strong>Intermediate Level</strong>: Good understanding of networks\n';
+        } else {
+            metricsText += '• 🏆 <strong>Advanced Level</strong>: Extensive network experience\n';
         }
+        metricsText += '\n';
+
+        metricsText += '<strong>PAPER-BASED ALGORITHM</strong>\n';
+        metricsText += '─'.repeat(80) + '\n';
+        metricsText += '• 📊 Uses historical state vectors (last n steps)\n';
+        metricsText += '• ⚖️ Balances throughput vs. congestion (utility function)\n';
+        metricsText += '• 🔄 Adapts to network changes in real-time\n';
+        metricsText += '• 📈 Learns optimal stream count for each condition\n';
+        metricsText += '• 🤖 Implements Q-learning with epsilon-greedy policy\n\n';
+
+        metricsText += '<strong>ACTIONS AVAILABLE</strong>\n';
+        metricsText += '─'.repeat(80) + '\n';
+        metricsText += '• +5 : Aggressive Increase\n';
+        metricsText += '• +1 : Conservative Increase\n';
+        metricsText += '•  0 : No Change\n';
+        metricsText += '• -1 : Conservative Decrease\n';
+        metricsText += '• -5 : Aggressive Decrease\n';
+
+        metricsText += '\n' + '═'.repeat(80);
+
+        metricsDisplay.innerHTML = metricsText;
+        metricsCard.classList.remove('d-none');
+        metricsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    async deleteFile(filename) {
-        if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
+    async resetRLLearning() {
+        if (!confirm('Are you sure you want to reset RL learning? This will clear all learned knowledge.')) {
             return;
         }
 
         try {
-            const encodedFilename = encodeURIComponent(filename);
-            const response = await fetch(`/api/files/${encodedFilename}`, {
-                method: 'DELETE'
+            const response = await fetch('/api/rl/reset', {
+                method: 'POST'
             });
 
             if (response.ok) {
-                this.showAlert('File deleted successfully', 'success');
-                this.loadFiles();
+                this.showAlert('RL learning reset successfully', 'success');
+                this.showRLStats(); // Refresh stats
             } else {
-                const data = await response.json();
-                this.showAlert('Error: ' + data.error, 'danger');
+                this.showAlert('Error resetting RL learning', 'danger');
             }
         } catch (error) {
-            this.showAlert('Error deleting file: ' + error.message, 'danger');
+            this.showAlert('Error resetting RL learning: ' + error.message, 'danger');
         }
-    }
-
-    openDownloadsFolder() {
-        window.open('/downloads/', '_blank');
-    }
-
-    openFile(filename) {
-        const link = document.createElement('a');
-        link.href = `/downloads/${encodeURIComponent(filename)}`;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    downloadFile(filename) {
-        const link = document.createElement('a');
-        link.href = `/downloads/${encodeURIComponent(filename)}`;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     }
 
     startUpdateInterval() {
@@ -1524,6 +980,149 @@ class DownloadManager {
         } catch (e) {
             return url;
         }
+    }
+
+    // File Manager Methods
+    async loadFiles() {
+        try {
+            const response = await fetch('/api/files');
+            if (response.ok) {
+                const files = await response.json();
+                this.displayFiles(files);
+            } else {
+                console.error('Error loading files');
+            }
+        } catch (error) {
+            console.error('Error loading files:', error);
+        }
+    }
+
+    displayFiles(files) {
+        const fileManager = document.getElementById('fileManager');
+        const fileCount = document.getElementById('fileCount');
+
+        if (files.length === 0) {
+            fileManager.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-folder-open"></i>
+                    <p>No files downloaded yet</p>
+                    <small class="text-muted">Downloaded files will appear here</small>
+                </div>
+            `;
+            fileCount.textContent = '0';
+            return;
+        }
+
+        fileManager.innerHTML = '';
+        fileCount.textContent = files.length;
+
+        files.forEach(file => {
+            const template = document.getElementById('fileItemTemplate');
+            const clone = template.content.cloneNode(true);
+
+            const fileItem = clone.querySelector('.file-item');
+            const fileIcon = clone.querySelector('.file-icon');
+            const fileName = clone.querySelector('.file-name');
+            const fileSize = clone.querySelector('.file-size');
+            const fileDate = clone.querySelector('.file-date');
+
+            // Set file name
+            fileName.textContent = file.name;
+            
+            // Set file size
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            fileSize.textContent = `${sizeMB} MB`;
+            
+            // Set file date
+            const date = new Date(file.modified * 1000);
+            fileDate.textContent = date.toLocaleDateString();
+
+            // Set file icon based on extension
+            const extension = file.name.split('.').pop().toLowerCase();
+            this.setFileIcon(fileIcon, extension);
+
+            // Add event listeners
+            clone.querySelector('.open-file').addEventListener('click', () => {
+                this.openFile(file.name);
+            });
+
+            clone.querySelector('.download-file').addEventListener('click', () => {
+                this.downloadFileAgain(file.name);
+            });
+
+            clone.querySelector('.delete-file').addEventListener('click', () => {
+                this.deleteFile(file.name);
+            });
+
+            fileManager.appendChild(clone);
+        });
+    }
+
+    setFileIcon(iconElement, extension) {
+        const iconMap = {
+            'zip': 'file-archive',
+            'rar': 'file-archive',
+            '7z': 'file-archive',
+            'pdf': 'file-pdf',
+            'jpg': 'file-image',
+            'jpeg': 'file-image',
+            'png': 'file-image',
+            'gif': 'file-image',
+            'mp4': 'file-video',
+            'avi': 'file-video',
+            'mov': 'file-video',
+            'mp3': 'file-audio',
+            'wav': 'file-audio',
+            'txt': 'file-alt',
+            'doc': 'file-word',
+            'docx': 'file-word',
+            'xls': 'file-excel',
+            'xlsx': 'file-excel',
+            'exe': 'cog'
+        };
+
+        const iconClass = iconMap[extension] || 'file';
+        iconElement.innerHTML = `<i class="fas fa-${iconClass}"></i>`;
+        
+        // Add file type class for styling
+        const fileType = Object.keys(iconMap).find(key => iconMap[key] === iconClass) || 'document';
+        iconElement.parentNode.parentNode.classList.add(`file-${fileType}`);
+    }
+
+    openFile(filename) {
+        window.open(`/downloads/${filename}`, '_blank');
+    }
+
+    async downloadFileAgain(filename) {
+        // This would re-download the file - for now just open it
+        this.openFile(filename);
+    }
+
+    async deleteFile(filename) {
+        if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/files/${filename}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                this.showAlert('File deleted successfully', 'success');
+                this.loadFiles(); // Refresh file list
+            } else {
+                const data = await response.json();
+                this.showAlert('Error: ' + data.error, 'danger');
+            }
+        } catch (error) {
+            this.showAlert('Error deleting file: ' + error.message, 'danger');
+        }
+    }
+
+    openDownloadsFolder() {
+        // This would open the system file explorer - for web, we show the file list
+        this.switchPage('files');
     }
 }
 

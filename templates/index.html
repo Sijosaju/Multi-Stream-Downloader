@@ -35,6 +35,8 @@
         --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
         --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
         --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.15);
+        --rl-color: #10b981;
+        --rl-glow: 0 0 10px rgba(16, 185, 129, 0.3);
     }
 
     * {
@@ -308,6 +310,18 @@
         font-size: 14px;
     }
 
+    .btn-rl {
+        background: var(--rl-color);
+        color: white;
+        border: none;
+    }
+
+    .btn-rl:hover {
+        background: #0da271;
+        transform: translateY(-1px);
+        box-shadow: var(--rl-glow);
+    }
+
     /* Section Headers */
     .section-header {
         display: flex;
@@ -379,6 +393,28 @@
         background: var(--warning-color);
     }
 
+    /* RL Optimized Downloads */
+    .download-item.rl-optimized {
+        border-left: 4px solid var(--rl-color);
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    }
+
+    .download-item.rl-optimized:hover {
+        box-shadow: var(--rl-glow);
+        transform: translateY(-2px);
+    }
+
+    .rl-badge {
+        background: var(--rl-color);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-left: 8px;
+        text-transform: uppercase;
+    }
+
     .download-header {
         display: flex;
         justify-content: space-between;
@@ -434,6 +470,17 @@
         background: var(--success-color);
         color: var(--accent-color);
         border: none;
+    }
+
+    .action-btn.rl {
+        background: var(--rl-color);
+        color: white;
+        border: none;
+    }
+
+    .action-btn.rl:hover {
+        background: #0da271;
+        box-shadow: var(--rl-glow);
     }
 
     .action-btn.danger:hover {
@@ -494,6 +541,59 @@
 
     .progress-bar.cancelled {
         background: var(--warning-color);
+    }
+
+    /* RL Info Section Styles */
+    .rl-info-section {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border: 1px solid #bae6fd;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-top: 12px;
+        font-size: 13px;
+    }
+
+    .rl-status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #0c4a6e;
+    }
+
+    .rl-status i {
+        color: var(--rl-color);
+        font-size: 14px;
+    }
+
+    .rl-text {
+        flex: 1;
+        font-weight: 500;
+    }
+
+    .rl-streams {
+        background: var(--rl-color);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+
+    .rl-throughput {
+        color: #0369a1;
+        font-weight: 500;
+        margin-left: 8px;
+    }
+
+    /* RL Decision Animation */
+    @keyframes rlPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    .rl-decision {
+        animation: rlPulse 0.6s ease-in-out;
     }
 
     /* Status */
@@ -675,6 +775,18 @@
         font-weight: 500;
     }
 
+    /* Form Switch for RL Mode */
+    .form-switch .form-check-input {
+        width: 48px;
+        height: 24px;
+    }
+
+    .form-switch .form-check-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
     .btn-close {
         background: transparent;
         border: none;
@@ -777,6 +889,56 @@
         padding: 60px 40px;
     }
 
+    /* RL Info Box */
+    .rl-info {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border: 1px solid #bae6fd;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 8px;
+    }
+
+    .rl-info i {
+        color: var(--rl-color);
+    }
+
+    /* RL Controls */
+    .rl-controls {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    /* RL Stats Section */
+    .rl-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+    }
+
+    .rl-stat-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+    }
+
+    .rl-stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--rl-color);
+        margin-bottom: 4px;
+    }
+
+    .rl-stat-label {
+        font-size: 12px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
     /* Responsive */
     @media (max-width: 1024px) {
         .sidebar {
@@ -825,6 +987,16 @@
         .file-actions {
             align-self: flex-end;
         }
+
+        .rl-status {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .rl-streams {
+            align-self: flex-start;
+        }
     }
 
     /* Custom scrollbar */
@@ -853,6 +1025,131 @@
     .page-section.active {
         display: block;
     }
+    /* Enhanced RL Styles */
+.rl-learning {
+    background: rgba(16, 185, 129, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px !important;
+    font-weight: 600;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.rl-global-badge {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.rl-decision-history {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: rgba(0, 0, 0, 0.03);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border-left: 3px solid var(--rl-color);
+}
+
+/* Enhanced progress animations */
+.progress-bar.rl-optimized {
+    background: linear-gradient(90deg, var(--rl-color), #3b82f6);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+/* Enhanced RL Styles */
+.rl-learning {
+    background: rgba(16, 185, 129, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px !important;
+    font-weight: 600;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.rl-global-badge {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.rl-decision-history {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: rgba(0, 0, 0, 0.03);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border-left: 3px solid var(--rl-color);
+}
+
+/* Enhanced progress animations */
+.progress-bar.rl-optimized {
+    background: linear-gradient(90deg, var(--rl-color), #3b82f6);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* RL decision animation */
+.rl-decision {
+    animation: rlPulse 0.6s ease-in-out;
+}
+
+@keyframes rlPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+/* Better RTT level styling */
+.rl-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.rl-status i {
+    color: var(--rl-color);
+    font-size: 14px;
+}
+
+.rl-text {
+    flex: 1;
+    font-weight: 500;
+    min-width: 120px;
+}
+
+.rl-streams {
+    background: var(--rl-color);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.rl-throughput {
+    color: #0369a1;
+    font-weight: 500;
+    font-size: 11px;
+    white-space: nowrap;
+}
 </style>
 </head>
 <body>
@@ -907,7 +1204,17 @@
         <div class="page-section active" id="downloads-page">
             <div class="page-header">
                 <h1>TurboLane Download Manager</h1>
-                <p>High-performance multi-stream downloads with advanced analytics</p>
+                <p>High-performance multi-stream downloads with AI-powered optimization</p>
+                
+                <!-- RL Controls -->
+                <div class="rl-controls">
+                    <button class="btn btn-rl btn-sm" id="showRlStats">
+                        <i class="fas fa-robot"></i> RL Statistics
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" id="resetRlLearning">
+                        <i class="fas fa-undo"></i> Reset Learning
+                    </button>
+                </div>
             </div>
 
             <!-- Download Form -->
@@ -946,6 +1253,26 @@
                                 <label for="numStreams" class="form-label">Parallel Streams</label>
                                 <input type="number" class="form-control" id="numStreams" min="1" max="16" value="8">
                                 <small class="text-muted mt-1 d-block">More streams = faster download (if supported)</small>
+                            </div>
+                        </div>
+
+                        <!-- RL Mode Toggle -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="rlMode">
+                                    <label class="form-check-label" for="rlMode">
+                                        <i class="fas fa-robot text-success me-2"></i>
+                                        <strong>Reinforcement Learning Mode</strong>
+                                        <span class="rl-badge">BETA</span>
+                                    </label>
+                                </div>
+                                <div id="rlInfo" class="rl-info d-none">
+                                    <small>
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <strong>🤖 AI-Powered Optimization:</strong> Automatically adjusts parallel streams in real-time based on network conditions. Learns and improves over time for maximum download performance.
+                                    </small>
+                                </div>
                             </div>
                         </div>
                         
@@ -1088,6 +1415,7 @@
                     <div class="progress-bar" style="width: 0%"></div>
                 </div>
             </div>
+            <!-- RL Info Section will be dynamically added here for RL downloads -->
             <div class="status-line">
                 <i class="fas fa-spinner fa-spin"></i>
                 <span class="status-text">Initializing download...</span>

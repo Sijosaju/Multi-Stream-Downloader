@@ -1,25 +1,33 @@
-# downloader.py - Core download functionality with detailed metrics and debugging
 
+"""
+downloader.py - Multi-Stream Downloader with RL-based Optimization
+Implements parallel TCP stream optimization using Q-Learning
+Aligned with the paper's approach for network bandwidth utilization
+"""
 import os
 import requests
 import threading
 from urllib.parse import urlparse, unquote
 import time
+import socket
+import subprocess
+import platform
 from config import *
+from rl_manager import rl_manager
+
 
 class MultiStreamDownloader:
-    def __init__(self, url, num_streams=DEFAULT_NUM_STREAMS, progress_callback=None):
-        """
-        Initialize the downloader.
-        
-        Args:
-            url: The URL to download from
-            num_streams: Number of parallel streams to use
-            progress_callback: Function to call with progress updates (for GUI)
-        """
+    """
+    Multi-stream downloader with reinforcement learning-based dynamic optimization.
+    """
+    
+    def __init__(self, url, num_streams=DEFAULT_NUM_STREAMS, 
+                 progress_callback=None, use_rl=False):
+        """Initialize the downloader."""
         self.url = url
         self.num_streams = min(max(num_streams, MIN_STREAMS), MAX_STREAMS)
         self.progress_callback = progress_callback
+        self.use_rl = use_rl
         
         # Download state
         self.file_size = 0
@@ -31,475 +39,625 @@ class MultiStreamDownloader:
         self.lock = threading.Lock()
         self.start_time = None
         
-        # Metrics tracking
+        # Enhanced metrics tracking for RL
         self.chunk_start_times = {}
         self.chunk_end_times = {}
         self.chunk_speeds = {}
         self.chunk_bytes = {}
+        self.failed_chunks = set()
+        self.active_chunks = set()
         
-    def get_filename_from_url(self):
-        """Extract filename from URL or generate one."""
-        path = urlparse(self.url).path
-        filename = unquote(os.path.basename(path))
+        # Network metrics (paper's state variables)
+        self.network_metrics = {
+            'throughput': 0.0,        # Mbps
+            'rtt': 100.0,             # milliseconds
+            'packet_loss': 0.1,       # percentage
+            'last_update': time.time()
+        }
         
-        if not filename or filename == '/':
-            filename = 'downloaded_file'
+        # Monitoring interval tracking
+        self.last_mi_time = time.time()
+        self.last_mi_bytes = 0
         
-        return filename
+        # Dynamic control for RL mode
+        if self.use_rl:
+            self.current_stream_count = rl_manager.current_connections
+            print("🤖 RL Mode: Reinforcement learning optimization enabled")
+            print(f"   Initial streams: {self.current_stream_count}")
+        else:
+            self.current_stream_count = self.num_streams
+            print(f"📊 Static Mode: Using {self.num_streams} streams")
+
+    # ==================== Network Metrics (Paper's State Variables) ====================
     
-    def check_download_support(self):
+    def measure_rtt(self):
         """
-        Check if the server supports range requests (parallel downloads).
-        Returns: (supports_ranges, file_size, filename)
+        Measure actual network RTT using ping.
+        Paper uses RTT as a key state variable (Section 3.1.1).
         """
         try:
-            # First try HEAD request
-            try:
-                response = requests.head(
-                    self.url, 
-                    timeout=CONNECTION_TIMEOUT, 
-                    allow_redirects=True
-                )
-                
-                if response.status_code == 200:
-                    supports_ranges = response.headers.get('Accept-Ranges') == 'bytes'
-                    file_size = int(response.headers.get('Content-Length', 0))
-                    
-                    # Get filename
-                    content_disposition = response.headers.get('Content-Disposition', '')
-                    if 'filename=' in content_disposition:
-                        filename = content_disposition.split('filename=')[1].strip('"')
-                    else:
-                        filename = self.get_filename_from_url()
-                    
-                    return supports_ranges, file_size, filename
-            except:
-                # HEAD failed, try GET with small range
-                print("HEAD request failed, trying GET with range...")
-                pass
+            # Extract hostname from URL
+            hostname = urlparse(self.url).hostname
             
-            # Fallback: Use GET request with a small range to test support
-            headers = {'Range': 'bytes=0-0'}
-            response = requests.get(
-                self.url,
-                headers=headers,
-                timeout=CONNECTION_TIMEOUT,
-                allow_redirects=True,
-                stream=True
+            # Platform-specific ping command
+            param = '-n' if platform.system().lower() == 'windows' else '-c'
+            command = ['ping', param, '1', '-W', '2', hostname]
+            
+            result = subprocess.run(
+                command, 
+                capture_output=True, 
+                text=True, 
+                timeout=3
             )
             
-            # Check if server supports ranges
-            # Status 206 means partial content (ranges supported)
-            # Status 200 means full content (ranges NOT supported)
-            supports_ranges = response.status_code == 206
+            # Parse RTT from output
+            output = result.stdout.lower()
             
-            # Get file size from Content-Range header or Content-Length
-            if 'Content-Range' in response.headers:
-                # Format: "bytes 0-0/12345" where 12345 is total size
-                content_range = response.headers['Content-Range']
-                file_size = int(content_range.split('/')[1])
-            else:
-                file_size = int(response.headers.get('Content-Length', 0))
+            # Different platforms have different output formats
+            if 'time=' in output:
+                # Linux/Mac format: time=X.XXX ms
+                rtt_str = output.split('time=')[1].split()[0]
+                rtt = float(rtt_str.replace('ms', ''))
+                return rtt
+            elif 'average' in output:
+                # Windows format may have average
+                parts = output.split('=')
+                if len(parts) >= 2:
+                    rtt = float(parts[-1].replace('ms', '').strip())
+                    return rtt
+                    
+        except Exception as e:
+            if ENABLE_VERBOSE_LOGGING:
+                print(f"⚠️  RTT measurement failed: {e}")
+        
+        # Fallback: estimate from chunk transfer times
+        return self.estimate_rtt_from_chunks()
+    
+    def estimate_rtt_from_chunks(self):
+        """
+        Fallback RTT estimation from chunk patterns.
+        Uses minimum chunk initiation delay as proxy.
+        """
+        if len(self.chunk_start_times) < 2:
+            return 100.0  # Default
+        
+        # Use time between chunk initiations as rough proxy
+        starts = sorted(self.chunk_start_times.values())
+        if len(starts) >= 2:
+            gaps = [starts[i+1] - starts[i] for i in range(len(starts)-1)]
+            min_gap = min(gaps) if gaps else 0.1
+            # Convert to milliseconds with reasonable bounds
+            estimated_rtt = min(1000, max(10, min_gap * 1000))
+            return estimated_rtt
+        
+        return 100.0
+    
+    def estimate_packet_loss(self):
+        """
+        Estimate packet loss from download patterns.
+        Paper uses packet loss rate as key state variable.
+        
+        We use proxy metrics since we can't access TCP layer directly:
+        - Speed variance (high variance suggests congestion/loss)
+        - Chunk failure rate
+        - Throughput degradation
+        """
+        if not self.chunk_speeds:
+            return 0.1  # Default low value
+        
+        speeds = list(self.chunk_speeds.values())
+        
+        if len(speeds) < 2:
+            return 0.1
+        
+        # Method 1: Speed variance as proxy for congestion
+        avg_speed = sum(speeds) / len(speeds)
+        variance = sum((s - avg_speed) ** 2 for s in speeds) / len(speeds)
+        cv = (variance ** 0.5) / avg_speed if avg_speed > 0 else 0  # Coefficient of variation
+        
+        # Method 2: Chunk failure rate
+        total_chunks = len(self.chunks)
+        failed_chunks = len(self.failed_chunks)
+        failure_rate = failed_chunks / total_chunks if total_chunks > 0 else 0
+        
+        # Combine both methods
+        # High CV suggests packet loss/congestion
+        loss_from_variance = min(10.0, cv * 5.0)  # Scale to reasonable percentage
+        loss_from_failures = failure_rate * 20.0  # Failed chunk suggests network issues
+        
+        # Weighted combination
+        estimated_loss = (loss_from_variance * 0.7 + loss_from_failures * 0.3)
+        
+        # Reasonable bounds: 0.1% to 10%
+        return max(0.1, min(10.0, estimated_loss))
+    
+    def calculate_throughput(self):
+        """
+        Calculate current throughput in Mbps.
+        Paper's primary performance metric.
+        """
+        if not self.start_time or self.downloaded_bytes == 0:
+            return 0.0
+        
+        elapsed = time.time() - self.start_time
+        if elapsed < 0.1:
+            return 0.0
+        
+        # Calculate throughput in Mbps
+        bits_downloaded = self.downloaded_bytes * 8
+        throughput_bps = bits_downloaded / elapsed
+        throughput_mbps = throughput_bps / (1024 * 1024)
+        
+        return throughput_mbps
+    
+    def update_network_metrics(self):
+        """
+        Update all network metrics for RL state.
+        Called at each monitoring interval.
+        """
+        current_time = time.time()
+        
+        # Calculate throughput
+        throughput = self.calculate_throughput()
+        
+        # Measure RTT
+        rtt = self.measure_rtt()
+        
+        # Estimate packet loss
+        packet_loss = self.estimate_packet_loss()
+        
+        # Update metrics
+        self.network_metrics.update({
+            'throughput': throughput,
+            'rtt': rtt,
+            'packet_loss': packet_loss,
+            'last_update': current_time
+        })
+        
+        if LOG_NETWORK_METRICS:
+            print(f"📈 Network Metrics: T={throughput:.2f}Mbps, RTT={rtt:.1f}ms, Loss={packet_loss:.2f}%")
+        
+        return throughput, rtt, packet_loss
+
+    # ==================== RL Integration (Monitoring Intervals) ====================
+    
+    def should_run_mi(self):
+        """
+        Check if a Monitoring Interval (MI) should run.
+        Paper's concept: periodic decision points (Section 3).
+        """
+        return time.time() - self.last_mi_time >= RL_MONITORING_INTERVAL
+    
+    def run_monitoring_interval(self):
+        """
+        Execute one monitoring interval cycle.
+        
+        This is the core of the paper's approach:
+        1. Measure network state
+        2. RL makes decision (adjust streams)
+        3. RL learns from previous decision outcome
+        """
+        if not self.use_rl:
+            return
+        
+        if not self.should_run_mi():
+            return
+        
+        try:
+            # Update network metrics (state variables)
+            throughput, rtt, packet_loss = self.update_network_metrics()
             
-            # Get filename
+            # RL learning from previous MI
+            rl_manager.learn_from_feedback(throughput, rtt, packet_loss)
+            
+            # RL makes new decision
+            new_stream_count = rl_manager.make_decision(throughput, rtt, packet_loss)
+            
+            # Apply the decision
+            if new_stream_count != self.current_stream_count:
+                old_count = self.current_stream_count
+                self.current_stream_count = new_stream_count
+                print(f"🔄 Stream count adjusted: {old_count} → {new_stream_count}")
+            
+            # Reset MI timer
+            self.last_mi_time = time.time()
+            self.last_mi_bytes = self.downloaded_bytes
+            
+        except Exception as e:
+            print(f"❌ MI execution error: {e}")
+            import traceback
+            traceback.print_exc()
+
+    # ==================== Chunk Management ====================
+    
+    def get_filename_from_url(self):
+        """Extract filename from URL."""
+        path = urlparse(self.url).path
+        filename = unquote(os.path.basename(path))
+        return filename if filename else 'downloaded_file'
+    
+    def check_download_support(self):
+        """Check if server supports range requests."""
+        try:
+            response = requests.head(
+                self.url, 
+                timeout=CONNECTION_TIMEOUT, 
+                allow_redirects=True
+            )
+            supports_ranges = response.headers.get('Accept-Ranges') == 'bytes'
+            file_size = int(response.headers.get('Content-Length', 0))
             content_disposition = response.headers.get('Content-Disposition', '')
-            if 'filename=' in content_disposition:
-                filename = content_disposition.split('filename=')[1].strip('"')
-            else:
-                filename = self.get_filename_from_url()
             
-            response.close()  # Close the connection
+            filename = (
+                content_disposition.split('filename=')[1].strip('"')
+                if 'filename=' in content_disposition 
+                else self.get_filename_from_url()
+            )
             
             return supports_ranges, file_size, filename
             
         except Exception as e:
-            raise Exception(f"Failed to check URL: {str(e)}")
+            print(f"⚠️  HEAD request failed, trying range request: {e}")
+            try:
+                headers = {'Range': 'bytes=0-0'}
+                response = requests.get(
+                    self.url, 
+                    headers=headers, 
+                    timeout=CONNECTION_TIMEOUT, 
+                    stream=True
+                )
+                supports_ranges = response.status_code == 206
+                
+                if 'Content-Range' in response.headers:
+                    file_size = int(response.headers['Content-Range'].split('/')[-1])
+                else:
+                    file_size = int(response.headers.get('Content-Length', 0))
+                
+                filename = self.get_filename_from_url()
+                response.close()
+                
+                return supports_ranges, file_size, filename
+                
+            except Exception as e2:
+                print(f"❌ Range request also failed: {e2}")
+                return False, 0, self.get_filename_from_url()
     
-    def calculate_chunks(self, file_size):
+    def calculate_chunks(self, file_size, max_streams):
         """
-        Divide the file into chunks for parallel download.
-        Returns: List of (start_byte, end_byte) tuples
+        Divide file into chunks for parallel download.
+        Creates more chunks than initially needed for RL to scale up.
         """
-        # If file is too small, use fewer streams
-        if file_size < MIN_CHUNK_SIZE * self.num_streams:
-            self.num_streams = max(1, file_size // MIN_CHUNK_SIZE)
-            if self.num_streams == 0:
-                self.num_streams = 1
+        # Ensure minimum chunk size
+        min_chunk_size = max(MIN_CHUNK_SIZE, 1024 * 1024)  # At least 1MB
         
-        chunk_size = file_size // self.num_streams
+        # Determine number of chunks based on file size
+        if file_size < min_chunk_size * max_streams:
+            actual_chunks = max(1, file_size // min_chunk_size)
+        else:
+            actual_chunks = max_streams
+        
+        chunk_size = file_size // actual_chunks
+        
         chunks = []
-        
-        for i in range(self.num_streams):
+        for i in range(actual_chunks):
             start = i * chunk_size
-            # Last chunk gets any remaining bytes
-            end = file_size - 1 if i == self.num_streams - 1 else (i + 1) * chunk_size - 1
+            end = file_size - 1 if i == actual_chunks - 1 else (i + 1) * chunk_size - 1
             chunks.append((start, end))
+        
+        print(f"📊 Created {len(chunks)} chunks (size: {chunk_size/(1024*1024):.1f}MB each)")
         
         return chunks
     
     def download_chunk(self, chunk_id, start, end, temp_file):
         """
-        Download a specific chunk of the file with metrics tracking and retry logic.
-        
-        Args:
-            chunk_id: ID of this chunk (for tracking)
-            start: Starting byte position
-            end: Ending byte position
-            temp_file: Path to temporary file for this chunk
+        Download a single chunk with error handling and metrics.
         """
         headers = {'Range': f'bytes={start}-{end}'}
         
-        # Track start time for this chunk
-        self.chunk_start_times[chunk_id] = time.time()
-        chunk_bytes_downloaded = 0
+        # Record start time
+        with self.lock:
+            self.chunk_start_times[chunk_id] = time.time()
+            self.active_chunks.add(chunk_id)
         
-        max_retries = MAX_RETRIES
-        retry_count = 0
+        chunk_bytes = 0
+        chunk_start = time.time()
         
-        while retry_count < max_retries:
-            try:
-                response = requests.get(
-                    self.url, 
-                    headers=headers, 
-                    stream=True,
-                    timeout=(CONNECTION_TIMEOUT, READ_TIMEOUT),
-                    allow_redirects=True
-                )
-                
-                # Check if request was successful (206 for partial content, 200 for full)
-                if response.status_code not in [200, 206]:
-                    print(f"Chunk {chunk_id}: Bad status code {response.status_code}")
-                    retry_count += 1
-                    if retry_count < max_retries:
-                        time.sleep(RETRY_DELAY)
-                    continue
-                
-                # Reset counter for this attempt
-                chunk_bytes_downloaded = 0
+        try:
+            with requests.get(
+                self.url,
+                headers=headers,
+                stream=True,
+                timeout=(CONNECTION_TIMEOUT, READ_TIMEOUT)
+            ) as r:
+                if r.status_code not in [200, 206]:
+                    print(f"❌ Chunk {chunk_id}: bad status {r.status_code}")
+                    with self.lock:
+                        self.failed_chunks.add(chunk_id)
+                        self.active_chunks.discard(chunk_id)
+                    return
                 
                 with open(temp_file, 'wb') as f:
-                    for data in response.iter_content(chunk_size=BUFFER_SIZE):
+                    for data in r.iter_content(chunk_size=BUFFER_SIZE):
                         if not self.is_downloading:
-                            print(f"Chunk {chunk_id}: Download cancelled")
                             break
                         
-                        if data:  # Filter out keep-alive chunks
-                            f.write(data)
-                            chunk_bytes_downloaded += len(data)
-                            
-                            # Update progress
-                            with self.lock:
-                                self.downloaded_bytes += len(data)
-                                if self.progress_callback:
-                                    self.progress_callback(self.downloaded_bytes, self.file_size)
+                        f.write(data)
+                        chunk_bytes += len(data)
+                        
+                        with self.lock:
+                            self.downloaded_bytes += len(data)
+                            if self.progress_callback:
+                                self.progress_callback(
+                                    self.downloaded_bytes, 
+                                    self.file_size
+                                )
+            
+            # Success - record metrics
+            chunk_end = time.time()
+            elapsed = chunk_end - chunk_start
+            
+            with self.lock:
+                self.chunk_end_times[chunk_id] = chunk_end
+                self.chunk_bytes[chunk_id] = chunk_bytes
+                self.chunk_speeds[chunk_id] = (chunk_bytes / (1024 * 1024)) / max(elapsed, 0.1)
+                self.active_chunks.discard(chunk_id)
+            
+        except Exception as e:
+            print(f"❌ Chunk {chunk_id} failed: {e}")
+            with self.lock:
+                self.failed_chunks.add(chunk_id)
+                self.active_chunks.discard(chunk_id)
+            
+            # Remove partial file
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except:
+                    pass
+    
+    def start_chunk_download(self, chunk_id, output_path):
+        """Start downloading a specific chunk in a new thread."""
+        if chunk_id >= len(self.chunks):
+            return
+        
+        start, end = self.chunks[chunk_id]
+        temp_file = f"{output_path}.part{chunk_id}"
+        
+        if temp_file not in self.temp_files:
+            self.temp_files.append(temp_file)
+        
+        thread = threading.Thread(
+            target=self.download_chunk,
+            args=(chunk_id, start, end, temp_file),
+            daemon=True
+        )
+        thread.start()
+        self.threads.append(thread)
+
+    # ==================== Download Strategies ====================
+    
+    def download_with_rl(self, output_path):
+        """
+        RL-based adaptive multi-stream download.
+        Implements the paper's dynamic stream adjustment approach.
+        """
+        print("🚀 Starting RL-based adaptive download...")
+        
+        self.is_downloading = True
+        self.downloaded_bytes = 0
+        self.start_time = time.time()
+        self.last_mi_time = self.start_time
+        self.threads, self.temp_files = [], []
+        
+        # Create chunks (more than initial streams for scaling)
+        self.chunks = self.calculate_chunks(self.file_size, MAX_STREAMS)
+        
+        remaining = set(range(len(self.chunks)))
+        
+        # Start initial chunks based on RL's current decision
+        initial_streams = min(self.current_stream_count, len(remaining))
+        print(f"📊 Starting with {initial_streams} streams")
+        
+        for _ in range(initial_streams):
+            if remaining:
+                chunk_id = remaining.pop()
+                self.start_chunk_download(chunk_id, output_path)
+        
+        # Main download loop with monitoring intervals
+        last_progress_log = time.time()
+        
+        while (remaining or self.threads) and self.is_downloading:
+            # Run monitoring interval (RL decision + learning)
+            self.run_monitoring_interval()
+            
+            # Clean up completed threads
+            self.threads = [t for t in self.threads if t.is_alive()]
+            
+            # Start new chunks if streams available
+            active_threads = len(self.threads)
+            available_slots = self.current_stream_count - active_threads
+            
+            if available_slots > 0 and remaining:
+                chunks_to_start = min(available_slots, len(remaining))
                 
-                # Track end time and calculate speed for this chunk
-                self.chunk_end_times[chunk_id] = time.time()
-                elapsed = self.chunk_end_times[chunk_id] - self.chunk_start_times[chunk_id]
-                self.chunk_bytes[chunk_id] = chunk_bytes_downloaded
-                self.chunk_speeds[chunk_id] = (chunk_bytes_downloaded / (1024 * 1024)) / elapsed if elapsed > 0 else 0
-                
-                print(f"Chunk {chunk_id}: Downloaded {chunk_bytes_downloaded / (1024*1024):.2f} MB in {elapsed:.2f}s")
-                break  # Success, exit retry loop
-                
-            except requests.exceptions.Timeout:
-                retry_count += 1
-                print(f"Chunk {chunk_id}: Timeout (attempt {retry_count}/{max_retries})")
-                if retry_count < max_retries:
-                    time.sleep(RETRY_DELAY)
-                else:
-                    print(f"Chunk {chunk_id}: Failed after {max_retries} attempts")
-                    self.chunk_end_times[chunk_id] = time.time()
-                    self.chunk_bytes[chunk_id] = chunk_bytes_downloaded
-                    
-            except Exception as e:
-                retry_count += 1
-                print(f"Chunk {chunk_id}: Error (attempt {retry_count}/{max_retries}): {str(e)}")
-                if retry_count < max_retries:
-                    time.sleep(RETRY_DELAY)
-                else:
-                    print(f"Chunk {chunk_id}: Failed after {max_retries} attempts")
-                    self.chunk_end_times[chunk_id] = time.time()
-                    self.chunk_bytes[chunk_id] = chunk_bytes_downloaded
+                for _ in range(chunks_to_start):
+                    if remaining:
+                        chunk_id = remaining.pop()
+                        self.start_chunk_download(chunk_id, output_path)
+            
+            # Progress logging (every 5 seconds)
+            if time.time() - last_progress_log >= 5:
+                if self.downloaded_bytes > 0 and self.file_size > 0:
+                    progress = (self.downloaded_bytes / self.file_size) * 100
+                    speed = self.calculate_throughput()
+                    print(f"📊 Progress: {progress:.1f}% | "
+                          f"Active: {len(self.active_chunks)} | "
+                          f"Speed: {speed:.1f} Mbps")
+                last_progress_log = time.time()
+            
+            # Sleep to avoid busy waiting
+            time.sleep(0.5)
+        
+        # Wait for all threads to complete
+        for thread in self.threads:
+            thread.join(timeout=60)
+        
+        success = len(self.failed_chunks) == 0
+        total_time = time.time() - self.start_time
+        
+        print(f"✅ Download completed in {total_time:.1f}s")
+        print(f"   Success rate: {(len(self.chunks) - len(self.failed_chunks)) / len(self.chunks):.1%}")
+        
+        return success
+    
+    def download_static(self, output_path):
+        """
+        Traditional static multi-stream download.
+        Fixed number of streams throughout.
+        """
+        print(f"🚀 Starting static download with {self.num_streams} streams...")
+        
+        self.is_downloading = True
+        self.downloaded_bytes = 0
+        self.start_time = time.time()
+        
+        # Create chunks
+        self.chunks = self.calculate_chunks(self.file_size, self.num_streams)
+        
+        # Start all chunks
+        for i in range(len(self.chunks)):
+            self.start_chunk_download(i, output_path)
+        
+        # Wait for completion
+        for thread in self.threads:
+            thread.join(timeout=300)
+        
+        success = len(self.failed_chunks) == 0
+        total_time = time.time() - self.start_time
+        
+        print(f"✅ Download completed in {total_time:.1f}s")
+        
+        return success
+
+    # ==================== File Assembly ====================
     
     def assemble_file(self, output_file):
-        """Combine all temporary chunk files into the final file."""
-        print(f"Assembling {len(self.temp_files)} parts into final file...")
+        """Assemble downloaded chunks into final file."""
+        print(f"📦 Assembling {len(self.temp_files)} parts...")
         
-        with open(output_file, 'wb') as outfile:
-            for i, temp_file in enumerate(self.temp_files):
-                if os.path.exists(temp_file):
-                    file_size = os.path.getsize(temp_file)
-                    print(f"  Adding part {i}: {file_size / (1024*1024):.2f} MB")
-                    
-                    with open(temp_file, 'rb') as infile:
-                        outfile.write(infile.read())
-                    
-                    # Delete temp file after combining
-                    try:
-                        os.remove(temp_file)
-                    except:
-                        pass
+        missing_parts = [tmp for tmp in self.temp_files if not os.path.exists(tmp)]
+        
+        if missing_parts:
+            print(f"⚠️  Missing {len(missing_parts)} parts")
+        
+        try:
+            with open(output_file, 'wb') as out:
+                for i, tmp in enumerate(self.temp_files):
+                    if os.path.exists(tmp):
+                        with open(tmp, 'rb') as part:
+                            out.write(part.read())
+                        os.remove(tmp)
+            
+            # Verify file size
+            if os.path.exists(output_file):
+                actual_size = os.path.getsize(output_file)
+                if actual_size == self.file_size:
+                    print("✅ File assembled and verified")
                 else:
-                    print(f"  WARNING: Part {i} not found at {temp_file}")
+                    print(f"⚠️  Size mismatch: expected {self.file_size}, got {actual_size}")
         
-        final_size = os.path.getsize(output_file)
-        print(f"Final file assembled: {final_size / (1024*1024):.2f} MB")
+        except Exception as e:
+            print(f"❌ File assembly error: {e}")
     
-    def get_detailed_metrics(self):
-        """
-        Calculate detailed download metrics.
-        Returns dictionary with all metrics.
-        """
-        if not self.start_time:
-            return None
-        
-        end_time = max(self.chunk_end_times.values()) if self.chunk_end_times else time.time()
-        total_time = end_time - self.start_time
-        
-        # Calculate overall throughput
-        throughput_mbps = (self.file_size * 8) / (total_time * 1024 * 1024) if total_time > 0 else 0
-        throughput_MBps = self.file_size / (total_time * 1024 * 1024) if total_time > 0 else 0
-        
-        # Calculate per-chunk metrics
-        chunk_metrics = []
-        for chunk_id in range(len(self.chunks)):
-            if chunk_id in self.chunk_start_times and chunk_id in self.chunk_end_times:
-                chunk_time = self.chunk_end_times[chunk_id] - self.chunk_start_times[chunk_id]
-                chunk_size = self.chunk_bytes.get(chunk_id, 0)
-                chunk_speed = self.chunk_speeds.get(chunk_id, 0)
-                
-                chunk_metrics.append({
-                    'chunk_id': chunk_id,
-                    'size_mb': chunk_size / (1024 * 1024),
-                    'time_seconds': chunk_time,
-                    'speed_mbps': chunk_speed
-                })
-        
-        # Find fastest and slowest chunks
-        if chunk_metrics:
-            fastest_chunk = max(chunk_metrics, key=lambda x: x['speed_mbps'])
-            slowest_chunk = min(chunk_metrics, key=lambda x: x['speed_mbps'])
-        else:
-            fastest_chunk = slowest_chunk = None
-        
-        return {
-            'total_time_seconds': total_time,
-            'total_size_mb': self.file_size / (1024 * 1024),
-            'throughput_mbps': throughput_mbps,
-            'throughput_MBps': throughput_MBps,
-            'num_streams_used': self.num_streams,
-            'average_speed_per_stream': throughput_MBps / self.num_streams if self.num_streams > 0 else 0,
-            'chunk_metrics': chunk_metrics,
-            'fastest_chunk': fastest_chunk,
-            'slowest_chunk': slowest_chunk
-        }
+    def cleanup(self):
+        """Clean up temporary files."""
+        for f in self.temp_files:
+            if os.path.exists(f):
+                try:
+                    os.remove(f)
+                except:
+                    pass
     
-    def print_metrics_report(self):
-        """Print a detailed metrics report to console."""
-        metrics = self.get_detailed_metrics()
-        if not metrics:
-            return
-        
-        print("\n" + "="*60)
-        print("DOWNLOAD METRICS REPORT")
-        print("="*60)
-        print(f"Total Download Time: {metrics['total_time_seconds']:.2f} seconds")
-        print(f"File Size: {metrics['total_size_mb']:.2f} MB")
-        print(f"Number of Streams: {metrics['num_streams_used']}")
-        print(f"\nOverall Throughput:")
-        print(f"  - {metrics['throughput_mbps']:.2f} Mbps")
-        print(f"  - {metrics['throughput_MBps']:.2f} MB/s")
-        print(f"  - Average per stream: {metrics['average_speed_per_stream']:.2f} MB/s")
-        
-        if metrics['chunk_metrics']:
-            print(f"\nPer-Stream Performance:")
-            print(f"  {'Stream':<8} {'Size (MB)':<12} {'Time (s)':<12} {'Speed (MB/s)':<15}")
-            print(f"  {'-'*50}")
-            for chunk in metrics['chunk_metrics']:
-                print(f"  {chunk['chunk_id']:<8} {chunk['size_mb']:<12.2f} "
-                      f"{chunk['time_seconds']:<12.2f} {chunk['speed_mbps']:<15.2f}")
-            
-            if metrics['fastest_chunk']:
-                print(f"\nFastest Stream: #{metrics['fastest_chunk']['chunk_id']} "
-                      f"at {metrics['fastest_chunk']['speed_mbps']:.2f} MB/s")
-            if metrics['slowest_chunk']:
-                print(f"Slowest Stream: #{metrics['slowest_chunk']['chunk_id']} "
-                      f"at {metrics['slowest_chunk']['speed_mbps']:.2f} MB/s")
-        
-        print("="*60 + "\n")
-    
-    def export_metrics_to_file(self, filename="download_metrics.txt"):
-        """Export metrics to a text file for analysis."""
-        metrics = self.get_detailed_metrics()
-        if not metrics:
-            return
-        
-        filepath = os.path.join(DOWNLOAD_FOLDER, filename)
-        
-        with open(filepath, 'w') as f:
-            f.write("MULTI-STREAM DOWNLOAD METRICS\n")
-            f.write("="*60 + "\n\n")
-            f.write(f"Download URL: {self.url}\n")
-            f.write(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-            
-            f.write(f"Total Time: {metrics['total_time_seconds']:.2f} seconds\n")
-            f.write(f"File Size: {metrics['total_size_mb']:.2f} MB\n")
-            f.write(f"Streams Used: {metrics['num_streams_used']}\n\n")
-            
-            f.write(f"Overall Throughput: {metrics['throughput_mbps']:.2f} Mbps\n")
-            f.write(f"Overall Throughput: {metrics['throughput_MBps']:.2f} MB/s\n")
-            f.write(f"Average per stream: {metrics['average_speed_per_stream']:.2f} MB/s\n\n")
-            
-            f.write("Per-Stream Details:\n")
-            f.write(f"{'Stream':<8} {'Size (MB)':<12} {'Time (s)':<12} {'Speed (MB/s)':<15}\n")
-            f.write("-"*50 + "\n")
-            
-            for chunk in metrics['chunk_metrics']:
-                f.write(f"{chunk['chunk_id']:<8} {chunk['size_mb']:<12.2f} "
-                       f"{chunk['time_seconds']:<12.2f} {chunk['speed_mbps']:<15.2f}\n")
-        
-        print(f"Metrics exported to: {filepath}")
+    def cancel(self):
+        """Cancel download."""
+        print("🛑 Cancelling download...")
+        self.is_downloading = False
+        time.sleep(1)
+        self.cleanup()
+
+    # ==================== Main Entry Point ====================
     
     def download(self, output_path=None):
         """
-        Main download function - coordinates the entire download process.
-        
-        Args:
-            output_path: Where to save the file (defaults to DOWNLOAD_FOLDER)
+        Main download function.
         
         Returns:
-            Path to downloaded file on success, None on failure
+            str: Path to downloaded file, or None if failed
         """
         try:
-            # Step 1: Check if download is possible
-            print("Checking server support...")
+            print("🔍 Checking server support...")
             supports_ranges, file_size, filename = self.check_download_support()
             self.file_size = file_size
             
-            print(f"File: {filename}")
-            print(f"File size: {file_size / (1024*1024):.2f} MB")
-            print(f"Supports range requests: {supports_ranges}")
-            
-            if file_size == 0:
-                raise Exception("File size is 0 or Content-Length header unavailable")
-            
             if not supports_ranges:
-                print("WARNING: Server doesn't support range requests. Using single stream.")
+                print("⚠️  Range requests not supported — using single stream")
                 self.num_streams = 1
+                self.use_rl = False
             
-            # Step 2: Setup output path
-            if output_path is None:
-                output_path = os.path.join(DOWNLOAD_FOLDER, filename)
+            output_path = output_path or os.path.join(DOWNLOAD_FOLDER, filename)
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
             
-            print(f"Output path: {output_path}")
+            print(f"💾 Output: {output_path}")
+            print(f"📁 Size: {file_size / (1024*1024):.1f} MB")
             
-            # Step 3: Calculate chunks
-            self.chunks = self.calculate_chunks(file_size)
-            print(f"\nStarting download with {self.num_streams} streams")
-            print(f"Chunk breakdown:")
+            # Execute download strategy
+            if self.use_rl:
+                success = self.download_with_rl(output_path)
+            else:
+                success = self.download_static(output_path)
             
-            for i, (start, end) in enumerate(self.chunks):
-                chunk_size = end - start + 1
-                print(f"  Stream {i}: bytes {start:,}-{end:,} ({chunk_size/(1024*1024):.2f} MB)")
-            
-            # Step 4: Start download
-            self.is_downloading = True
-            self.downloaded_bytes = 0
-            self.start_time = time.time()
-            self.threads = []
-            self.temp_files = []
-            
-            print("\nDownloading...")
-            
-            # Create temporary files for each chunk
-            for i, (start, end) in enumerate(self.chunks):
-                temp_file = f"{output_path}.part{i}"
-                self.temp_files.append(temp_file)
-                
-                # Create thread for this chunk
-                thread = threading.Thread(
-                    target=self.download_chunk,
-                    args=(i, start, end, temp_file),
-                    daemon=True
-                )
-                thread.start()
-                self.threads.append(thread)
-            
-            # Step 5: Wait for all threads to complete
-            for i, thread in enumerate(self.threads):
-                thread.join()
-            
-            print("\nAll streams completed")
-            
-            # Step 6: Verify and assemble
-            if self.is_downloading:  # Only if not cancelled
-                # Check temp file sizes before assembly
-                print("\nVerifying downloaded parts:")
-                total_downloaded = 0
-                for i, temp_file in enumerate(self.temp_files):
-                    if os.path.exists(temp_file):
-                        size = os.path.getsize(temp_file)
-                        total_downloaded += size
-                        expected_size = self.chunks[i][1] - self.chunks[i][0] + 1
-                        status = "OK" if size == expected_size else f"MISMATCH (expected {expected_size})"
-                        print(f"  Part {i}: {size:,} bytes - {status}")
-                    else:
-                        print(f"  Part {i}: MISSING!")
-                
-                print(f"\nTotal downloaded: {total_downloaded / (1024*1024):.2f} MB")
-                print(f"Expected: {file_size / (1024*1024):.2f} MB")
-                
-                # Assemble the file
+            if success and self.is_downloading:
                 self.assemble_file(output_path)
                 
-                # Verify final file
-                if os.path.exists(output_path):
-                    final_size = os.path.getsize(output_path)
-                    print(f"\nFinal file size: {final_size / (1024*1024):.2f} MB")
-                    
-                    if final_size == file_size:
-                        print("SUCCESS: File size matches!")
-                    else:
-                        print(f"WARNING: Size mismatch! Expected {file_size}, got {final_size}")
+                # Save RL state
+                if self.use_rl:
+                    rl_manager.save_q_table()
+                    rl_manager.print_stats()
                 
-                # Print detailed metrics report
-                self.print_metrics_report()
-                self.export_metrics_to_file()
+                # Final metrics
+                final_throughput = self.calculate_throughput()
+                print(f"📈 Average throughput: {final_throughput:.2f} Mbps")
                 
                 return output_path
             else:
-                print("Download cancelled.")
+                print("❌ Download failed")
                 self.cleanup()
                 return None
-                
+        
         except Exception as e:
-            print(f"\nDownload failed: {str(e)}")
+            print(f"❌ Download error: {e}")
             import traceback
             traceback.print_exc()
             self.cleanup()
             return None
     
-    def cleanup(self):
-        """Clean up temporary files."""
-        print("Cleaning up temporary files...")
-        for temp_file in self.temp_files:
-            if os.path.exists(temp_file):
-                try:
-                    os.remove(temp_file)
-                    print(f"  Removed: {temp_file}")
-                except Exception as e:
-                    print(f"  Failed to remove {temp_file}: {e}")
-    
-    def cancel(self):
-        """Cancel the download."""
-        print("Cancelling download...")
-        self.is_downloading = False
-        self.cleanup()
-    
-    def get_speed(self):
-        """Calculate current download speed in MB/s."""
-        if self.start_time and self.downloaded_bytes > 0:
-            elapsed = time.time() - self.start_time
-            return (self.downloaded_bytes / (1024 * 1024)) / elapsed if elapsed > 0 else 0
-        return 0
+    def get_stats(self):
+        """Get download statistics."""
+        elapsed = time.time() - self.start_time if self.start_time else 0
+        
+        stats = {
+            'elapsed_time': elapsed,
+            'downloaded_bytes': self.downloaded_bytes,
+            'file_size': self.file_size,
+            'progress': (self.downloaded_bytes / self.file_size * 100) if self.file_size > 0 else 0,
+            'throughput_mbps': self.calculate_throughput(),
+            'num_chunks': len(self.chunks),
+            'completed_chunks': len(self.chunk_end_times),
+            'failed_chunks': len(self.failed_chunks),
+            'active_chunks': len(self.active_chunks)
+        }
+        
+        if self.use_rl:
+            stats['rl_stats'] = rl_manager.get_stats()
+        
+        return stats

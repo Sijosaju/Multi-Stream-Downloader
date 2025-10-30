@@ -1,4 +1,4 @@
-# app.py - Flask application with File Manager
+# app.py - Updated with RL integration
 from flask import Flask, render_template, request, jsonify, send_file
 import os
 import threading
@@ -10,6 +10,7 @@ from datetime import datetime
 from downloader import MultiStreamDownloader
 from simple_downloader import SimpleDownloader
 from config import DOWNLOAD_FOLDER, FLASK_HOST, FLASK_PORT, FLASK_DEBUG
+from rl_manager import rl_manager
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -18,7 +19,7 @@ class DownloadManager:
     def __init__(self):
         self.active_downloads = {}
     
-    def start_download(self, url, mode, num_streams):
+    def start_download(self, url, mode, num_streams, use_rl=False):
         download_id = str(int(time.time() * 1000))
         
         try:
@@ -26,7 +27,12 @@ class DownloadManager:
             if mode == "single":
                 downloader = SimpleDownloader(url, progress_callback=None)
             else:
-                downloader = MultiStreamDownloader(url, num_streams=num_streams, progress_callback=None)
+                downloader = MultiStreamDownloader(
+                    url, 
+                    num_streams=num_streams, 
+                    progress_callback=None,
+                    use_rl=use_rl
+                )
             
             self.active_downloads[download_id] = {
                 'downloader': downloader,
@@ -39,8 +45,9 @@ class DownloadManager:
                 'thread': None,
                 'filename': None,
                 'error': None,
-                'total_size': 0,  # Track total file size
-                'downloaded_size': 0  # Track downloaded bytes
+                'total_size': 0,
+                'downloaded_size': 0,
+                'use_rl': use_rl
             }
             
             # Start download in thread
@@ -109,8 +116,8 @@ class DownloadManager:
                     if hasattr(downloader, 'downloaded_bytes') and hasattr(downloader, 'file_size'):
                         if downloader.file_size > 0:
                             download_info['progress'] = (downloader.downloaded_bytes / downloader.file_size) * 100
-                            download_info['downloaded_size'] = downloader.downloaded_bytes  # Track downloaded bytes
-                            download_info['total_size'] = downloader.file_size  # Track total size
+                            download_info['downloaded_size'] = downloader.downloaded_bytes
+                            download_info['total_size'] = downloader.file_size
                         # Safely get speed
                         try:
                             download_info['speed'] = downloader.get_speed() if hasattr(downloader, 'get_speed') else 0
@@ -118,9 +125,8 @@ class DownloadManager:
                             download_info['speed'] = 0
                 except Exception as e:
                     print(f"Error updating progress: {str(e)}")
-                    # Don't fail the entire request if progress update fails
             
-            # Create a serializable status object (without the downloader instance)
+            # Create a serializable status object
             serializable_status = {
                 'url': download_info['url'],
                 'mode': download_info['mode'],
@@ -131,8 +137,9 @@ class DownloadManager:
                 'filename': download_info.get('filename'),
                 'error': download_info.get('error'),
                 'metrics': download_info.get('metrics'),
-                'total_size': download_info.get('total_size', 0),  # Include total size
-                'downloaded_size': download_info.get('downloaded_size', 0)  # Include downloaded size
+                'total_size': download_info.get('total_size', 0),
+                'downloaded_size': download_info.get('downloaded_size', 0),
+                'use_rl': download_info.get('use_rl', False)
             }
             
             return serializable_status
@@ -164,6 +171,7 @@ def start_download():
     url = data.get('url', '').strip()
     mode = data.get('mode', 'multi')
     num_streams = int(data.get('num_streams', 8))
+    use_rl = data.get('use_rl', False)  # New RL mode parameter
     
     if not url:
         return jsonify({'error': 'URL is required'}), 400
@@ -172,10 +180,11 @@ def start_download():
         return jsonify({'error': 'URL must start with http:// or https://'}), 400
     
     try:
-        download_id = download_manager.start_download(url, mode, num_streams)
+        download_id = download_manager.start_download(url, mode, num_streams, use_rl)
         return jsonify({
             'download_id': download_id,
-            'message': 'Download started successfully'
+            'message': 'Download started successfully',
+            'rl_enabled': use_rl
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -209,30 +218,45 @@ def get_download_metrics(download_id):
     else:
         return jsonify({'error': 'Metrics not available'}), 404
 
+# New RL endpoints
+@app.route('/api/rl/stats')
+def get_rl_stats():
+    """Get RL learning statistics."""
+    return jsonify(rl_manager.get_stats())
+
+@app.route('/api/rl/reset', methods=['POST'])
+def reset_rl():
+    """Reset RL learning (clear Q-table)."""
+    rl_manager.Q = {}
+    rl_manager.save_q_table()
+    return jsonify({'message': 'RL learning reset successfully'})
+
+@app.route('/api/rl/save', methods=['POST'])
+def save_rl():
+    """Save RL Q-table."""
+    rl_manager.save_q_table()
+    return jsonify({'message': 'RL Q-table saved successfully'})
+
+# Existing file management endpoints remain the same...
 @app.route('/downloads/<filename>')
 def download_file(filename):
     file_path = os.path.join(DOWNLOAD_FOLDER, filename)
     if os.path.exists(file_path):
-        # Determine if we should display inline or force download
         mime_type, encoding = mimetypes.guess_type(filename)
         
-        # Force download for certain file types
         force_download_types = ['.zip', '.rar', '.7z', '.exe', '.msi', '.dmg', '.pkg', '.deb', '.rpm']
         as_attachment = any(filename.lower().endswith(ext) for ext in force_download_types)
         
-        # For safe file types, try to open in browser
         safe_types = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.txt', '.mp4', '.mp3', '.webm', '.avi']
         can_open_in_browser = any(filename.lower().endswith(ext) for ext in safe_types)
         
         if can_open_in_browser and not as_attachment:
-            # Try to open in browser
             return send_file(
                 file_path,
                 as_attachment=False,
                 mimetype=mime_type
             )
         else:
-            # Force download
             return send_file(
                 file_path, 
                 as_attachment=True,
@@ -241,25 +265,6 @@ def download_file(filename):
     else:
         return jsonify({'error': 'File not found'}), 404
 
-@app.route('/api/downloads')
-def list_downloads():
-    downloads = []
-    for download_id, info in download_manager.active_downloads.items():
-        # Create serializable download info
-        serializable_info = {
-            'id': download_id,
-            'url': info['url'],
-            'status': info['status'],
-            'progress': info.get('progress', 0),
-            'mode': info['mode'],
-            'filename': info.get('filename'),
-            'speed': info.get('speed', 0),
-            'total_size': info.get('total_size', 0),  # Include total size
-            'downloaded_size': info.get('downloaded_size', 0)  # Include downloaded size
-        }
-        downloads.append(serializable_info)
-    return jsonify(downloads)
-
 @app.route('/api/files')
 def list_files():
     """List all files in the download folder."""
@@ -267,14 +272,12 @@ def list_files():
         files = []
         download_folder = DOWNLOAD_FOLDER
         
-        # Get all files in the download folder
         for file_path in glob.glob(os.path.join(download_folder, '*')):
             if os.path.isfile(file_path):
                 filename = os.path.basename(file_path)
                 file_size = os.path.getsize(file_path)
                 modified_time = os.path.getmtime(file_path)
                 
-                # Skip temporary files and system files
                 if not (filename.startswith('.') or 
                        filename.startswith('download_metrics') or
                        filename.endswith('_simple_metrics.txt') or
@@ -287,9 +290,7 @@ def list_files():
                         'path': file_path
                     })
         
-        # Sort by modification time (newest first)
         files.sort(key=lambda x: x['modified'], reverse=True)
-        
         return jsonify(files)
     except Exception as e:
         print(f"Error listing files: {str(e)}")
@@ -301,7 +302,6 @@ def list_files():
 def delete_file(filename):
     """Delete a file from the download folder."""
     try:
-        # Security check: prevent directory traversal
         if '..' in filename or '/' in filename or '\\' in filename:
             return jsonify({'error': 'Invalid filename'}), 400
             
@@ -310,7 +310,6 @@ def delete_file(filename):
         if not os.path.exists(file_path):
             return jsonify({'error': 'File not found'}), 404
             
-        # Additional security check
         if not os.path.realpath(file_path).startswith(os.path.realpath(DOWNLOAD_FOLDER)):
             return jsonify({'error': 'Access denied'}), 403
             
@@ -323,215 +322,6 @@ def delete_file(filename):
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
-# @app.route('/downloads/')
-# def list_downloads_directory():
-#     """Serve a simple directory listing page."""
-#     try:
-#         files = []
-#         download_folder = DOWNLOAD_FOLDER
-        
-#         for file_path in glob.glob(os.path.join(download_folder, '*')):
-#             if os.path.isfile(file_path):
-#                 filename = os.path.basename(file_path)
-#                 file_size = os.path.getsize(file_path)
-#                 modified_time = datetime.fromtimestamp(os.path.getmtime(file_path))
-                
-#                 # Skip temporary files
-#                 if not (filename.startswith('.') or 
-#                        filename.startswith('download_metrics') or
-#                        filename.endswith('_simple_metrics.txt') or
-#                        filename.endswith('.part')):
-                    
-#                     files.append({
-#                         'name': filename,
-#                         'size': file_size,
-#                         'modified': modified_time.strftime('%Y-%m-%d %H:%M:%S'),
-#                         'url': f'/downloads/{filename}'
-#                     })
-        
-#         # Sort by modification time (newest first)
-#         files.sort(key=lambda x: x['modified'], reverse=True)
-        
-#         # Simple HTML directory listing
-#         html = """
-#         <!DOCTYPE html>
-#         <html>
-#         <head>
-#             <title>TurboLane - Downloaded Files</title>
-#             <style>
-#                 body { 
-#                     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-#                     margin: 0; 
-#                     padding: 0;
-#                     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-#                     color: #f1f5f9;
-#                     min-height: 100vh;
-#                 }
-#                 .container {
-#                     max-width: 1200px;
-#                     margin: 0 auto;
-#                     padding: 40px;
-#                 }
-#                 .header {
-#                     text-align: center;
-#                     margin-bottom: 40px;
-#                     padding-bottom: 20px;
-#                     border-bottom: 1px solid #334155;
-#                 }
-#                 .header h1 {
-#                     font-size: 32px;
-#                     font-weight: 700;
-#                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-#                     -webkit-background-clip: text;
-#                     -webkit-text-fill-color: transparent;
-#                     margin-bottom: 8px;
-#                 }
-#                 .header p {
-#                     color: #94a3b8;
-#                     font-size: 16px;
-#                 }
-#                 table {
-#                     width: 100%;
-#                     border-collapse: collapse;
-#                     background: #1e293b;
-#                     border-radius: 12px;
-#                     overflow: hidden;
-#                     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-#                 }
-#                 th, td {
-#                     padding: 16px 20px;
-#                     text-align: left;
-#                     border-bottom: 1px solid #334155;
-#                 }
-#                 th {
-#                     background: linear-gradient(135deg, #1e293b 0%, #1a253c 100%);
-#                     font-weight: 600;
-#                     color: #f1f5f9;
-#                 }
-#                 tr:hover {
-#                     background: rgba(255, 255, 255, 0.05);
-#                 }
-#                 .file-link {
-#                     color: #60a5fa;
-#                     text-decoration: none;
-#                     font-weight: 500;
-#                     transition: color 0.3s ease;
-#                 }
-#                 .file-link:hover {
-#                     color: #3b82f6;
-#                     text-decoration: underline;
-#                 }
-#                 .back-link {
-#                     display: inline-flex;
-#                     align-items: center;
-#                     gap: 8px;
-#                     color: #94a3b8;
-#                     text-decoration: none;
-#                     margin-bottom: 20px;
-#                     padding: 10px 16px;
-#                     border: 1px solid #334155;
-#                     border-radius: 8px;
-#                     transition: all 0.3s ease;
-#                 }
-#                 .back-link:hover {
-#                     color: #f1f5f9;
-#                     border-color: #475569;
-#                     background: rgba(255, 255, 255, 0.05);
-#                 }
-#                 .file-size {
-#                     color: #94a3b8;
-#                     font-family: 'JetBrains Mono', monospace;
-#                 }
-#                 .file-date {
-#                     color: #94a3b8;
-#                 }
-#                 .empty-state {
-#                     text-align: center;
-#                     padding: 60px 40px;
-#                     color: #94a3b8;
-#                 }
-#                 .empty-state i {
-#                     font-size: 64px;
-#                     color: #334155;
-#                     margin-bottom: 20px;
-#                     opacity: 0.5;
-#                 }
-#             </style>
-#             <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-#             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-#         </head>
-#         <body>
-#             <div class="container">
-#                 <div class="header">
-#                     <h1><i class="fas fa-folder-open"></i> TurboLane File Manager</h1>
-#                     <p>All your downloaded files in one place</p>
-#                 </div>
-                
-#                 <a href="/" class="back-link">
-#                     <i class="fas fa-arrow-left"></i>
-#                     Back to Download Manager
-#                 </a>
-#         """
-        
-#         if not files:
-#             html += """
-#                 <div class="empty-state">
-#                     <i class="fas fa-folder-open"></i>
-#                     <p>No files downloaded yet</p>
-#                     <small>Downloaded files will appear here</small>
-#                 </div>
-#             """
-#         else:
-#             html += """
-#                 <table>
-#                     <thead>
-#                         <tr>
-#                             <th>Filename</th>
-#                             <th>Size</th>
-#                             <th>Modified</th>
-#                             <th>Action</th>
-#                         </tr>
-#                     </thead>
-#                     <tbody>
-#             """
-            
-#             for file in files:
-#                 size_mb = file['size'] / (1024 * 1024)
-#                 html += f"""
-#                         <tr>
-#                             <td>
-#                                 <i class="fas fa-file" style="margin-right: 8px; color: #94a3b8;"></i>
-#                                 {file['name']}
-#                             </td>
-#                             <td class="file-size">{size_mb:.2f} MB</td>
-#                             <td class="file-date">{file['modified']}</td>
-#                             <td>
-#                                 <a href="{file['url']}" class="file-link" download>
-#                                     <i class="fas fa-download"></i>
-#                                     Download
-#                                 </a>
-#                             </td>
-#                         </tr>
-#                 """
-            
-#             html += """
-#                     </tbody>
-#                 </table>
-#             """
-        
-#         html += """
-#             </div>
-#         </body>
-#         </html>
-#         """
-        
-#         return html
-#     except Exception as e:
-#         print(f"Error generating directory listing: {str(e)}")
-#         import traceback
-#         traceback.print_exc()
-#         return jsonify({'error': str(e)}), 500
-
 @app.route('/api/stats')
 def get_stats():
     """Get download statistics."""
@@ -543,7 +333,6 @@ def get_stats():
         for file_path in glob.glob(os.path.join(download_folder, '*')):
             if os.path.isfile(file_path):
                 filename = os.path.basename(file_path)
-                # Skip temporary files
                 if not (filename.startswith('.') or 
                        filename.startswith('download_metrics') or
                        filename.endswith('_simple_metrics.txt') or
@@ -551,7 +340,6 @@ def get_stats():
                     total_files += 1
                     total_size += os.path.getsize(file_path)
         
-        # Get active downloads count
         active_downloads = len([d for d in download_manager.active_downloads.values() 
                               if d.get('status') == 'downloading'])
         
@@ -567,12 +355,12 @@ def get_stats():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    # Ensure download folder exists
     os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
     
     print(f"🚀 TurboLane Download Manager starting...")
     print(f"📁 Download folder: {DOWNLOAD_FOLDER}")
     print(f"🌐 Server running at: http://{FLASK_HOST}:{FLASK_PORT}")
     print(f"🔧 Debug mode: {FLASK_DEBUG}")
+    print(f"🤖 RL Integration: Enabled")
     
     app.run(debug=FLASK_DEBUG, host=FLASK_HOST, port=FLASK_PORT)
