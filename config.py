@@ -25,17 +25,17 @@ RETRY_DELAY = 2
 # Monitoring Interval (MI) - Section 3 of paper
 RL_MONITORING_INTERVAL = 5.0  # seconds between RL decisions (conservative)
 
-# Q-Learning parameters
-RL_LEARNING_RATE = 0.15       # α in Q-learning update
-RL_DISCOUNT_FACTOR = 0.9      # γ - future reward discount
-RL_EXPLORATION_RATE = 0.3     # ε - initial exploration rate
-RL_MIN_EXPLORATION = 0.05     # minimum exploration to maintain
-RL_EXPLORATION_DECAY = 0.9995 # gradual decay rate
+# Q-Learning parameters (FIXED)
+RL_LEARNING_RATE = 0.2        # α in Q-learning update (higher for faster learning)
+RL_DISCOUNT_FACTOR = 0.85     # γ - future reward discount
+RL_EXPLORATION_RATE = 0.4     # ε - initial exploration rate (higher initial exploration)
+RL_MIN_EXPLORATION = 0.1      # minimum exploration to maintain
+RL_EXPLORATION_DECAY = 0.998  # slower decay for more exploration
 
-# Utility function parameters (Equation 3 from paper)
+# Utility function parameters (Equation 3 from paper) - FIXED
 UTILITY_K = 1.1  # Cost-benefit parameter for additional streams
-UTILITY_B = 10   # Punishment severity for packet loss
-UTILITY_EPSILON = 0.1  # Threshold for significant utility change
+UTILITY_B = 100  # Punishment severity for packet loss (scaled up since loss is now decimal)
+UTILITY_EPSILON = 0.15  # Threshold for significant utility change (adjusted for scale)
 
 # Reward values (Section 3.1.3 from paper)
 REWARD_POSITIVE = 1.0   # x - positive improvement
