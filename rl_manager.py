@@ -1,6 +1,6 @@
 """
-rl_manager.py - OPTIMIZED Reinforcement Learning Manager
-Final version with balanced stream optimization
+rl_manager.py - FIXED OPTIMIZED Reinforcement Learning Manager
+Key fixes: Neutral Q-value initialization, no stability bonus, better exploration
 """
 import json
 import time
@@ -13,7 +13,7 @@ from config import *
 class RLConnectionManager:
     """
     Q-Learning agent for optimizing parallel TCP stream count.
-    OPTIMIZED: Balanced utility function with progressive stream costs
+    FIXED: Neutral initialization for better exploration
     """
     
     def __init__(self, 
@@ -49,8 +49,8 @@ class RLConnectionManager:
         self.total_decisions = 0
         self.total_learning_updates = 0
         
-        # Action history for oscillation prevention
-        self.action_history = deque(maxlen=5)
+        # Action history for pattern detection
+        self.action_history = deque(maxlen=10)
         
         # Performance improvement tracking
         self.performance_stats = {
@@ -68,7 +68,7 @@ class RLConnectionManager:
         self.load_q_table()
         
         if ENABLE_VERBOSE_LOGGING:
-            print("✅ RL Manager initialized (OPTIMIZED VERSION)")
+            print("✅ RL Manager initialized (FIXED OPTIMIZED VERSION)")
             print(f"   Learning Rate: {self.learning_rate}")
             print(f"   Discount Factor: {self.discount_factor}")
             print(f"   Exploration Rate: {self.exploration_rate}")
@@ -78,48 +78,49 @@ class RLConnectionManager:
     
     def discretize_state(self, throughput, rtt, packet_loss):
         """
-        Optimized state discretization with balanced levels.
+        Optimized state discretization with balanced granularity.
         State = (throughput_level, rtt_level, loss_level)
+        Total states: 6 × 4 × 5 = 120
         """
-        # Throughput levels (Mbps) - balanced granularity
+        # Throughput levels (Mbps)
         if throughput < 10:
-            throughput_level = 0  # Very Low
+            throughput_level = 0
         elif throughput < 20:
-            throughput_level = 1  # Low
+            throughput_level = 1
         elif throughput < 30:
-            throughput_level = 2  # Medium-Low
+            throughput_level = 2
         elif throughput < 40:
-            throughput_level = 3  # Medium
+            throughput_level = 3
         elif throughput < 50:
-            throughput_level = 4  # Medium-High
+            throughput_level = 4
         else:
-            throughput_level = 5  # High
+            throughput_level = 5
 
         # RTT levels (ms)
         if rtt < 30:
-            rtt_level = 0  # Excellent
+            rtt_level = 0
         elif rtt < 80:
-            rtt_level = 1  # Good
+            rtt_level = 1
         elif rtt < 150:
-            rtt_level = 2  # Fair
+            rtt_level = 2
         else:
-            rtt_level = 3  # Poor
+            rtt_level = 3
 
         # Packet loss levels (%)
         if packet_loss < 0.1:
-            loss_level = 0  # Excellent
+            loss_level = 0
         elif packet_loss < 0.5:
-            loss_level = 1  # Good
+            loss_level = 1
         elif packet_loss < 1.0:
-            loss_level = 2  # Fair
+            loss_level = 2
         elif packet_loss < 2.0:
-            loss_level = 3  # Poor
+            loss_level = 3
         else:
-            loss_level = 4  # Very Poor
+            loss_level = 4
 
         return (throughput_level, rtt_level, loss_level)
 
-    # ==================== Action Selection ====================
+    # ==================== Action Selection (FIXED) ====================
     
     def get_available_actions(self):
         """Available actions for stream adjustment."""
@@ -132,71 +133,61 @@ class RLConnectionManager:
         }
     
     def get_q_value(self, state, action):
-        """Get Q-value with balanced initialization."""
+        """
+        FIXED: Get Q-value with NEUTRAL initialization.
+        All actions start equal - only experience determines value.
+        """
         if state not in self.Q:
-            # Initialize with balanced values favoring optimal range
-            initial_values = {
-                0: 1.2,  # Aggressive Increase
-                1: 1.5,  # Conservative Increase
-                2: 1.8,  # No Change - most optimistic
-                3: 1.3,  # Conservative Decrease
-                4: 0.8   # Aggressive Decrease
-            }
-            self.Q[state] = initial_values
-        return self.Q[state].get(action, 1.0)
+            # FIXED: Neutral initialization (all actions equal)
+            self.Q[state] = {a: 0.0 for a in range(5)}
+        return self.Q[state].get(action, 0.0)
     
     def choose_action(self, state):
-        """ε-greedy with balanced exploration and exploitation."""
+        """
+        FIXED: ε-greedy with neutral initialization and enhanced exploration.
+        """
         # Gradual exploration decay
         self.exploration_rate = max(
             self.min_exploration_rate,
             self.exploration_rate * self.exploration_decay
         )
         
-        # Initialize state if new
+        # FIXED: Initialize new states with neutral values
         if state not in self.Q:
-            initial_values = {
-                0: 1.2,  # Aggressive Increase
-                1: 1.5,  # Conservative Increase
-                2: 1.8,  # No Change
-                3: 1.3,  # Conservative Decrease
-                4: 0.8   # Aggressive Decrease
-            }
-            self.Q[state] = initial_values
-    
-        # Exploration with probability epsilon
-        if random.random() < self.exploration_rate:
-            # Balanced random exploration
-            weights = [0.15, 0.20, 0.35, 0.20, 0.10]  # Favor stability
+            self.Q[state] = {a: 0.0 for a in range(5)}
+        
+        # Enhanced exploration for new/underexplored states
+        state_visits = len([m for m in self.metrics_history if m['state'] == state])
+        if state_visits < 3:  # New or rarely visited state
+            effective_exploration = min(0.5, self.exploration_rate * 2.0)
+        else:
+            effective_exploration = self.exploration_rate
+        
+        # Exploration
+        if random.random() < effective_exploration:
+            # Weighted random to encourage trying different actions
+            weights = [0.2, 0.2, 0.2, 0.2, 0.2]  # Equal weights
             action = random.choices(range(5), weights=weights)[0]
             self.action_history.append(action)
             return action
         
-        # Exploitation with tie-breaking
+        # Exploitation
         q_values = self.Q[state]
         max_q = max(q_values.values())
-        best_actions = [a for a, q in q_values.items() if q == max_q]
         
-        # Context-aware action selection
-        if len(self.action_history) >= 3:
-            recent_actions = list(self.action_history)
+        # Get all best actions
+        best_actions = [a for a, q in q_values.items() if abs(q - max_q) < 0.001]
+        
+        # Oscillation prevention: avoid repeating increase/decrease patterns
+        if len(self.action_history) >= 4:
+            recent = list(self.action_history)[-4:]
             
-            # If we've been increasing too much, prefer stability or decrease
-            if sum(1 for a in recent_actions if a in [0, 1]) >= 2:
-                if 2 in best_actions:  # Prefer no change
+            # Detect oscillation: [increase, decrease, increase, decrease]
+            if (recent[0] in [0, 1] and recent[1] in [3, 4] and 
+                recent[2] in [0, 1] and recent[3] in [3, 4]):
+                # Prefer stability
+                if 2 in best_actions:
                     action = 2
-                elif any(a in [3, 4] for a in best_actions):  # Prefer decrease
-                    decrease_actions = [a for a in best_actions if a in [3, 4]]
-                    action = random.choice(decrease_actions) if decrease_actions else random.choice(best_actions)
-                else:
-                    action = random.choice(best_actions)
-            # If we've been decreasing too much, prefer stability or increase
-            elif sum(1 for a in recent_actions if a in [3, 4]) >= 2:
-                if 2 in best_actions:  # Prefer no change
-                    action = 2
-                elif any(a in [0, 1] for a in best_actions):  # Prefer increase
-                    increase_actions = [a for a in best_actions if a in [0, 1]]
-                    action = random.choice(increase_actions) if increase_actions else random.choice(best_actions)
                 else:
                     action = random.choice(best_actions)
             else:
@@ -208,7 +199,7 @@ class RLConnectionManager:
         return action
     
     def apply_action_constraints(self, action, current_connections):
-        """Apply action with intelligent constraints for optimal range."""
+        """Apply action with intelligent constraints."""
         action_map = self.get_available_actions()
         change = action_map[action]
         new_connections = current_connections + change
@@ -217,91 +208,85 @@ class RLConnectionManager:
         new_connections = max(self.min_connections, 
                              min(self.max_connections, new_connections))
         
-        # Intelligent constraints based on network conditions and optimal range
-        recent_metrics = list(self.metrics_history)[-3:] if len(self.metrics_history) >= 3 else []
+        # Intelligent constraints based on network conditions
+        recent = list(self.metrics_history)[-3:] if len(self.metrics_history) >= 3 else []
         
-        if recent_metrics:
-            avg_throughput = sum(m['throughput'] for m in recent_metrics) / len(recent_metrics)
-            avg_loss = sum(m['packet_loss'] for m in recent_metrics) / len(recent_metrics)
-            avg_rtt = sum(m['rtt'] for m in recent_metrics) / len(recent_metrics)
+        if recent:
+            avg_throughput = sum(m['throughput'] for m in recent) / len(recent)
+            avg_loss = sum(m['packet_loss'] for m in recent) / len(recent)
+            avg_rtt = sum(m['rtt'] for m in recent) / len(recent)
             
-            # Optimal conditions - encourage exploration in 6-12 range
+            # Excellent conditions - encourage optimal range (6-12)
             if avg_throughput > 30 and avg_loss < 0.5 and avg_rtt < 100:
-                optimal_min, optimal_max = 6, 12
-                
-                if new_connections < optimal_min and change < 0:
-                    # Don't decrease below optimal minimum in good conditions
+                if new_connections < 6 and change < 0:
+                    # Don't go below 6 in good conditions
                     if LOG_RL_DECISIONS:
-                        print(f"🔄 RL: Good conditions, maintaining at least {optimal_min} streams")
-                    return max(optimal_min, current_connections)
-                elif new_connections > optimal_max and change > 0:
-                    # Be cautious about exceeding optimal maximum
+                        print(f"🔄 RL: Good conditions, maintaining at least 6 streams")
+                    return max(6, current_connections)
+                elif new_connections > 12 and change > 0:
+                    # Don't exceed 12 in good conditions
                     if LOG_RL_DECISIONS:
-                        print(f"🔄 RL: Approaching optimal max, limiting increase")
-                    return min(optimal_max, new_connections)
+                        print(f"🔄 RL: Good conditions, capping at 12 streams")
+                    return min(12, new_connections)
             
-            # Poor conditions - be conservative
+            # Poor conditions - be very conservative
             if avg_loss > 2.0 or avg_rtt > 200:
                 if change > 0:
-                    # Limit increases in poor conditions
                     if LOG_RL_DECISIONS:
                         print("🔄 RL: Poor conditions, limiting increase")
                     return min(current_connections + 1, new_connections)
-                elif change < -1:
-                    # Allow decreases but not too aggressive
-                    return max(current_connections - 1, new_connections)
         
         return new_connections
 
-    # ==================== OPTIMIZED Utility & Reward ====================
+    # ==================== OPTIMIZED Utility & Reward (FIXED) ====================
     
     def calculate_utility(self, throughput, packet_loss_pct, num_streams):
         """
         OPTIMIZED utility function with progressive stream costs.
-        Encourages optimal range of 6-12 streams.
+        Strongly encourages optimal range of 6-12 streams.
         """
-        # Convert packet loss percentage to decimal
+        # Convert to decimal
         loss_decimal = packet_loss_pct / 100.0
+        loss_decimal = max(0.0001, min(0.1, loss_decimal))
         
-        # Efficiency factor - reward efficient use of streams
+        # Efficiency bonus
         if num_streams > 0:
             efficiency = throughput / num_streams
-            # High efficiency with multiple streams gets substantial bonus
-            efficiency_bonus = min(10.0, efficiency * 1.0) if efficiency > 4 else 0
+            efficiency_bonus = min(10.0, efficiency * 0.8) if efficiency > 4 else 0
         else:
             efficiency_bonus = 0
         
-        # Base throughput value with gentle diminishing returns
-        throughput_value = throughput * (1.0 - throughput / (throughput + 80))
+        # Base throughput with gentle diminishing returns
+        throughput_value = throughput * (1.0 - throughput / (throughput + 100))
         
-        # Loss penalty (increases exponentially with loss)
-        loss_penalty = throughput * (loss_decimal ** 2) * 20
+        # Loss penalty (quadratic)
+        loss_penalty = throughput * (loss_decimal ** 2) * 30
         
-        # PROGRESSIVE STREAM COST - key optimization
+        # PROGRESSIVE stream costs (key optimization)
         if num_streams <= 6:
-            stream_cost = num_streams * 0.2  # Very low cost for minimal streams
+            stream_cost = num_streams * 0.3
         elif num_streams <= 10:
-            stream_cost = num_streams * 0.4  # Low cost for optimal range
+            stream_cost = num_streams * 0.5  # Optimal range
         elif num_streams <= 14:
-            stream_cost = num_streams * 0.8  # Medium cost for extended range
+            stream_cost = num_streams * 1.0
         else:
-            stream_cost = num_streams * 1.5  # High cost for excessive streams
+            stream_cost = num_streams * 2.0  # Discourage high stream counts
         
         utility = throughput_value - loss_penalty - stream_cost + efficiency_bonus
         
-        # SUBSTANTIAL bonus for optimal stream range (6-10 streams)
+        # SUBSTANTIAL bonus for optimal range (6-10 streams)
         if 6 <= num_streams <= 10:
-            utility += 8.0
+            utility += 12.0  # Strong incentive
             self.performance_stats['optimal_range_usage'] += 1
         elif 4 <= num_streams <= 12:
-            utility += 3.0  # Smaller bonus for extended optimal range
+            utility += 5.0  # Moderate incentive for extended range
         
         return utility
     
     def calculate_reward(self, prev_throughput, curr_throughput, 
                         prev_loss_pct, curr_loss_pct, num_streams):
         """
-        Optimized reward calculation with adaptive sensitivity.
+        FIXED: Reward calculation with proper sensitivity and NO stability bonus.
         """
         # Calculate utilities
         prev_utility = self.calculate_utility(prev_throughput, prev_loss_pct, num_streams)
@@ -309,67 +294,63 @@ class RLConnectionManager:
         
         utility_diff = curr_utility - prev_utility
         
-        # Adaptive threshold based on throughput level and stream count
+        # Adaptive threshold - more sensitive in optimal range
         base_threshold = UTILITY_EPSILON
         
-        # More sensitive to changes when in optimal range
         if 6 <= num_streams <= 12:
             threshold = base_threshold * 0.7
         else:
             threshold = base_threshold
         
-        # Calculate reward with enhanced sensitivity
+        # Calculate reward with scaling
         if utility_diff > threshold:
-            # Scale positive reward by improvement magnitude
-            reward_scale = min(3.0, (utility_diff / max(1.0, abs(prev_utility))) * 2)
+            # Scale by magnitude of improvement
+            reward_scale = min(3.0, 1.0 + abs(utility_diff) / 10.0)
             reward = REWARD_POSITIVE * reward_scale
             self.performance_stats['total_positive_rewards'] += 1
             if utility_diff > threshold * 2:
                 self.performance_stats['throughput_improvements'] += 1
         elif utility_diff < -threshold:
-            # Scale negative reward by degradation magnitude
-            reward_scale = min(3.0, (abs(utility_diff) / max(1.0, abs(prev_utility))) * 2)
+            # Scale by magnitude of degradation
+            reward_scale = min(3.0, 1.0 + abs(utility_diff) / 10.0)
             reward = REWARD_NEGATIVE * reward_scale
             self.performance_stats['total_negative_rewards'] += 1
         else:
-            # Small positive reward for stability in optimal range
-            if 6 <= num_streams <= 12:
-                reward = REWARD_NEUTRAL * 0.8
-            else:
-                reward = REWARD_NEUTRAL * 0.3
+            # FIXED: Pure neutral - no bonus for stability!
+            reward = 0.0
         
         # Track total reward
         self.performance_stats['total_reward'] += reward
         
         if LOG_RL_DECISIONS:
-            print(f"   💰 Reward Calculation (OPTIMIZED):")
-            print(f"      Prev: T={prev_throughput:.1f}Mbps, L={prev_loss_pct:.3f}%, U={prev_utility:.4f}")
-            print(f"      Curr: T={curr_throughput:.1f}Mbps, L={curr_loss_pct:.3f}%, U={curr_utility:.4f}")
-            print(f"      Utility Diff: {utility_diff:.4f}, Reward: {reward:.2f}")
+            print(f"   💰 Reward Calculation (FIXED):")
+            print(f"      Prev: T={prev_throughput:.1f}Mbps, L={prev_loss_pct:.3f}%, U={prev_utility:.2f}")
+            print(f"      Curr: T={curr_throughput:.1f}Mbps, L={curr_loss_pct:.3f}%, U={curr_utility:.2f}")
+            print(f"      Utility Diff: {utility_diff:.2f}, Reward: {reward:.2f}")
             if 6 <= num_streams <= 12:
-                print(f"      🎯 IN OPTIMAL RANGE (6-12 streams)")
+                print(f"      🎯 IN OPTIMAL RANGE ({num_streams} streams)")
         
         return reward
 
     # ==================== Q-Learning Update ====================
     
     def update_q_value(self, state, action, reward, next_state):
-        """Q-learning update with enhanced learning for optimal range."""
+        """Q-learning update with adaptive learning rate."""
         current_q = self.get_q_value(state, action)
         
         # Get max Q-value for next state
         if next_state in self.Q:
             max_next_q = max(self.Q[next_state].values())
         else:
-            max_next_q = 1.0  # Optimistic initial value
+            max_next_q = 0.0  # FIXED: Neutral for new states
         
-        # Q-learning update with momentum
+        # Q-learning update
         td_target = reward + self.discount_factor * max_next_q
         td_error = td_target - current_q
         
-        # Enhanced learning rate for significant rewards
-        if abs(reward) > REWARD_POSITIVE * 0.5:
-            effective_lr = self.learning_rate * 2.0
+        # Adaptive learning rate for significant updates
+        if abs(reward) > 1.0:
+            effective_lr = self.learning_rate * 1.5
         else:
             effective_lr = self.learning_rate
         
@@ -380,14 +361,14 @@ class RLConnectionManager:
         
         # Update Q-table
         if state not in self.Q:
-            self.Q[state] = {a: 1.0 for a in range(5)}
+            self.Q[state] = {a: 0.0 for a in range(5)}
         self.Q[state][action] = new_q
         
         self.total_learning_updates += 1
         
-        if LOG_Q_TABLE_UPDATES and abs(td_error) > 0.1:
-            print(f"   📊 Q-Update: Q{(state,action)}: {current_q:.3f} → {new_q:.3f}")
-            print(f"      TD Error: {td_error:.4f}, Reward: {reward:.2f}")
+        if LOG_Q_TABLE_UPDATES and abs(td_error) > 0.5:
+            print(f"   📊 Q-Update: Q{(state,action)}: {current_q:.2f} → {new_q:.2f}")
+            print(f"      TD Error: {td_error:.2f}, Reward: {reward:.2f}")
 
     # ==================== Decision Making ====================
     
@@ -396,9 +377,7 @@ class RLConnectionManager:
         return time.time() - self.last_decision_time >= self.monitoring_interval
     
     def make_decision(self, throughput, rtt, packet_loss_pct):
-        """
-        Main decision-making function.
-        """
+        """Main decision-making function."""
         if not self.should_make_decision():
             return self.current_connections
         
@@ -434,23 +413,22 @@ class RLConnectionManager:
             if LOG_RL_DECISIONS:
                 action_map = self.get_available_actions()
                 action_names = {
-                    0: "AGGR_INCREASE", 1: "CONS_INCREASE", 2: "NO_CHANGE",
-                    3: "CONS_DECREASE", 4: "AGGR_DECREASE"
+                    0: "AGGR_INC", 1: "INC", 2: "STAY",
+                    3: "DEC", 4: "AGGR_DEC"
                 }
                 print(f"\n🤖 RL Decision #{self.total_decisions}")
-                print(f"   Metrics: T={throughput:.1f}Mbps, RTT={rtt:.1f}ms, Loss={packet_loss_pct:.3f}%")
+                print(f"   Metrics: T={throughput:.1f}Mbps, RTT={rtt:.1f}ms, Loss={packet_loss_pct:.2f}%")
                 print(f"   State: {current_state}")
                 print(f"   Action: {action} ({action_names[action]}: {action_map[action]:+d})")
                 print(f"   Connections: {old_connections} → {new_connections}")
-                print(f"   Exploration: {self.exploration_rate:.4f}")
+                print(f"   Exploration: {self.exploration_rate:.3f}")
                 
-                # Highlight optimal range
                 if 6 <= new_connections <= 12:
-                    print(f"   🎯 OPTIMAL RANGE: {new_connections} streams")
+                    print(f"   🎯 OPTIMAL: {new_connections} streams")
                 elif new_connections < 6:
-                    print(f"   📉 BELOW OPTIMAL: {new_connections} streams")
+                    print(f"   📉 BELOW: {new_connections} streams")
                 else:
-                    print(f"   📈 ABOVE OPTIMAL: {new_connections} streams")
+                    print(f"   📈 ABOVE: {new_connections} streams")
             
             if new_connections != old_connections:
                 self.performance_stats['successful_adjustments'] += 1
@@ -464,11 +442,8 @@ class RLConnectionManager:
             return self.current_connections
     
     def learn_from_feedback(self, current_throughput, current_rtt, current_packet_loss_pct):
-        """
-        Learn from feedback with enhanced tracking.
-        """
+        """Learn from feedback."""
         if self.last_state is None or self.last_action is None or self.last_metrics is None:
-            # First iteration
             self.last_metrics = {
                 'throughput': current_throughput,
                 'rtt': current_rtt,
@@ -509,13 +484,12 @@ class RLConnectionManager:
                 'timestamp': time.time()
             })
             
-            # Update performance statistics
+            # Update statistics
             if self.total_learning_updates > 0:
                 self.performance_stats['average_reward'] = (
                     self.performance_stats['total_reward'] / self.total_learning_updates
                 )
             
-            # Calculate stream efficiency
             if self.current_connections > 0:
                 self.performance_stats['stream_efficiency'] = (
                     current_throughput / self.current_connections
@@ -567,7 +541,7 @@ class RLConnectionManager:
             os.replace(temp_file, Q_TABLE_FILE)
             
             if ENABLE_VERBOSE_LOGGING:
-                print(f"💾 Q-table saved: {len(self.Q)} states, avg reward: {self.performance_stats['average_reward']:.3f}")
+                print(f"💾 Q-table saved: {len(self.Q)} states, avg reward: {self.performance_stats['average_reward']:.2f}")
             
         except Exception as e:
             print(f"❌ Error saving Q-table: {e}")
@@ -597,7 +571,7 @@ class RLConnectionManager:
                 
                 print(f"✅ Q-table loaded: {len(self.Q)} states")
                 print(f"   Previous decisions: {self.total_decisions}")
-                print(f"   Exploration rate: {self.exploration_rate:.4f}")
+                print(f"   Exploration rate: {self.exploration_rate:.3f}")
                 
         except Exception as e:
             print(f"⚠️  Could not load Q-table: {e}")
@@ -607,7 +581,7 @@ class RLConnectionManager:
     def get_stats(self):
         """Get comprehensive statistics."""
         total_updates = max(1, self.total_learning_updates)
-        optimal_percentage = (self.performance_stats['optimal_range_usage'] / total_updates * 100) if total_updates > 0 else 0
+        optimal_pct = (self.performance_stats['optimal_range_usage'] / total_updates * 100) if total_updates > 0 else 0
         
         return {
             'q_table_size': len(self.Q),
@@ -622,7 +596,7 @@ class RLConnectionManager:
             'negative_rewards': self.performance_stats['total_negative_rewards'],
             'throughput_improvements': self.performance_stats['throughput_improvements'],
             'stream_efficiency': self.performance_stats['stream_efficiency'],
-            'optimal_range_percentage': optimal_percentage,
+            'optimal_range_percentage': optimal_pct,
             'metrics_history_size': len(self.metrics_history),
             'monitoring_interval': self.monitoring_interval
         }
@@ -630,22 +604,22 @@ class RLConnectionManager:
     def print_stats(self):
         """Print formatted statistics."""
         stats = self.get_stats()
-        print("\n" + "="*60)
-        print("📊 RL MANAGER STATISTICS (OPTIMIZED)")
-        print("="*60)
-        print(f"Q-table States:        {stats['q_table_size']}")
-        print(f"Current Connections:   {stats['current_connections']}")
-        print(f"Total Decisions:       {stats['total_decisions']}")
-        print(f"Learning Updates:      {stats['total_learning_updates']}")
-        print(f"Exploration Rate:      {stats['exploration_rate']:.4f}")
-        print(f"Average Reward:        {stats['average_reward']:.4f}")
-        print(f"Total Reward:          {stats['total_reward']:.1f}")
-        print(f"Successful Adjusts:    {stats['successful_adjustments']}")
-        print(f"Positive Rewards:      {stats['positive_rewards']}")
-        print(f"Negative Rewards:      {stats['negative_rewards']}")
+        print("\n" + "="*70)
+        print("📊 RL MANAGER STATISTICS (FIXED OPTIMIZED)")
+        print("="*70)
+        print(f"Q-table States:          {stats['q_table_size']}")
+        print(f"Current Connections:     {stats['current_connections']}")
+        print(f"Total Decisions:         {stats['total_decisions']}")
+        print(f"Learning Updates:        {stats['total_learning_updates']}")
+        print(f"Exploration Rate:        {stats['exploration_rate']:.3f}")
+        print(f"Average Reward:          {stats['average_reward']:.3f}")
+        print(f"Total Reward:            {stats['total_reward']:.1f}")
+        print(f"Successful Adjustments:  {stats['successful_adjustments']}")
+        print(f"Positive Rewards:        {stats['positive_rewards']}")
+        print(f"Negative Rewards:        {stats['negative_rewards']}")
         print(f"Throughput Improvements: {stats['throughput_improvements']}")
-        print(f"Stream Efficiency:     {stats['stream_efficiency']:.1f} Mbps/stream")
-        print(f"Optimal Range Usage:   {stats['optimal_range_percentage']:.1f}%")
+        print(f"Stream Efficiency:       {stats['stream_efficiency']:.1f} Mbps/stream")
+        print(f"Optimal Range Usage:     {stats['optimal_range_percentage']:.1f}%")
         
         # Range assessment
         connections = stats['current_connections']
@@ -655,15 +629,15 @@ class RLConnectionManager:
             range_status = "📉 BELOW OPTIMAL"
         else:
             range_status = "📈 ABOVE OPTIMAL"
-        print(f"Current Range:         {range_status}")
+        print(f"Current Range:           {range_status}")
         
-        # Compute success rate
+        # Success rate
         total_rewards = stats['positive_rewards'] + stats['negative_rewards']
         if total_rewards > 0:
             success_rate = stats['positive_rewards'] / total_rewards * 100
-            print(f"Success Rate:          {success_rate:.1f}%")
+            print(f"Success Rate:            {success_rate:.1f}%")
         
-        print("="*60 + "\n")
+        print("="*70 + "\n")
 
 
 # Global RL manager instance

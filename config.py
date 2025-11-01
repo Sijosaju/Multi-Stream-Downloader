@@ -113,7 +113,7 @@ RL_EXPLORATION_DECAY = 0.995  # slower decay
 # Utility function parameters (BALANCED)
 UTILITY_K = 1.02              # Much smaller cost per stream
 UTILITY_B = 5.0               # Moderate punishment for loss
-UTILITY_EPSILON = 0.1         # 10% relative threshold
+UTILITY_EPSILON = 0.08         # 10% relative threshold
 
 # Reward values
 REWARD_POSITIVE = 1.0
