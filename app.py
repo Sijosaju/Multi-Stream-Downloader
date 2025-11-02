@@ -13,7 +13,7 @@ from config import DOWNLOAD_FOLDER, FLASK_HOST, FLASK_PORT, FLASK_DEBUG
 from rl_manager import rl_manager
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['SECRET_KEY'] = 'sijonet'
 
 class DownloadManager:
     def __init__(self):

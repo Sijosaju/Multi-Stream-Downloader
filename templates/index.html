@@ -6,37 +6,38 @@
     <title>TurboLane - Advanced Download Manager</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
    <style>
     :root {
-        --primary-color: #000000;
-        --primary-light: #333333;
-        --primary-dark: #000000;
-        --secondary-color: #666666;
-        --accent-color: #ffffff;
-        --success-color: #000000;
-        --warning-color: #333333;
-        --danger-color: #000000;
-        --bg-primary: #ffffff;
-        --bg-secondary: #f8f9fa;
+        --primary-color: #2563eb;
+        --primary-light: #3b82f6;
+        --primary-dark: #1e40af;
+        --secondary-color: #64748b;
+        --accent-color: #f59e0b;
+        --success-color: #10b981;
+        --warning-color: #f59e0b;
+        --danger-color: #ef4444;
+        --bg-primary: #f8fafc;
+        --bg-secondary: #f1f5f9;
         --bg-surface: #ffffff;
         --bg-card: #ffffff;
-        --text-primary: #000000;
-        --text-secondary: #666666;
-        --text-muted: #999999;
-        --border-color: #e5e5e5;
-        --border-light: #f0f0f0;
-        --border-dark: #cccccc;
-        --sidebar-bg: #000000;
-        --sidebar-text: #ffffff;
-        --sidebar-text-secondary: #cccccc;
-        --sidebar-border: #333333;
-        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-        --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-        --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
-        --shadow-xl: 0 20px 50px rgba(0, 0, 0, 0.15);
+        --text-primary: #0f172a;
+        --text-secondary: #475569;
+        --text-muted: #94a3b8;
+        --border-color: #e2e8f0;
+        --border-light: #f1f5f9;
+        --border-dark: #cbd5e1;
+        --sidebar-bg: #0f172a;
+        --sidebar-text: #f8fafc;
+        --sidebar-text-secondary: #94a3b8;
+        --sidebar-border: #1e293b;
+        --sidebar-hover: #1e293b;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
         --rl-color: #10b981;
-        --rl-glow: 0 0 10px rgba(16, 185, 129, 0.3);
+        --rl-glow: 0 0 20px rgba(16, 185, 129, 0.3);
     }
 
     * {
@@ -51,40 +52,28 @@
         color: var(--text-primary);
         line-height: 1.6;
         min-height: 100vh;
+        overflow-x: hidden;
     }
 
-    /* Minimalist Effects */
-    .minimal-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        box-shadow: var(--shadow-sm);
-        transition: all 0.3s ease;
-    }
-
-    .minimal-card:hover {
-        box-shadow: var(--shadow-md);
-        border-color: var(--border-dark);
-    }
-
-    /* Sidebar - Full Black Background */
+    /* Sidebar - Modern Dark Design */
     .sidebar {
         position: fixed;
         left: 0;
         top: 0;
         width: 280px;
         height: 100vh;
-        background: var(--sidebar-bg);
+        background: linear-gradient(180deg, var(--sidebar-bg) 0%, #1e293b 100%);
         padding: 0;
         z-index: 1000;
         border-right: 1px solid var(--sidebar-border);
         box-shadow: var(--shadow-xl);
+        backdrop-filter: blur(10px);
     }
 
     .sidebar-header {
-        padding: 30px 24px;
+        padding: 32px 24px;
         border-bottom: 1px solid var(--sidebar-border);
-        background: var(--sidebar-bg);
+        background: rgba(30, 41, 59, 0.5);
     }
 
     .sidebar-brand {
@@ -96,23 +85,30 @@
     }
 
     .sidebar-logo {
-        width: 44px;
-        height: 44px;
-        background: var(--sidebar-text);
-        border-radius: 10px;
+        width: 48px;
+        height: 48px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
-        color: var(--sidebar-bg);
-        box-shadow: var(--shadow-sm);
+        font-size: 22px;
+        color: white;
+       
+        transition: all 0.3s ease;
+    }
+
+    .sidebar-brand:hover .sidebar-logo {
+        transform: scale(1.05);
+       
     }
 
     .sidebar-title {
-        font-size: 20px;
-        font-weight: 700;
+        font-size: 22px;
+        font-weight: 800;
         letter-spacing: -0.5px;
-        color: var(--sidebar-text);
+        background: linear-gradient(135deg, var(--sidebar-text) 0%, var(--primary-light) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
 
     .nav-menu {
@@ -121,7 +117,7 @@
     }
 
     .nav-item {
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
 
     .nav-link {
@@ -131,8 +127,8 @@
         padding: 14px 16px;
         color: var(--sidebar-text-secondary);
         text-decoration: none;
-        border-radius: 10px;
-        transition: all 0.3s ease;
+        border-radius: 12px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         font-size: 15px;
         font-weight: 500;
         position: relative;
@@ -145,30 +141,27 @@
         left: 0;
         top: 0;
         height: 100%;
-        width: 3px;
-        background: var(--sidebar-text);
-        transform: scaleX(0);
-        transition: transform 0.3s ease;
+        width: 100%;
+        background: linear-gradient(90deg, rgba(37, 99, 235, 0.1) 0%, transparent 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
     }
 
     .nav-link:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: var(--sidebar-hover);
         color: var(--sidebar-text);
         transform: translateX(4px);
     }
 
     .nav-link:hover::before {
-        transform: scaleX(1);
+        opacity: 1;
     }
 
     .nav-link.active {
-        background: rgba(255, 255, 255, 0.15);
+        background: linear-gradient(90deg, rgba(37, 99, 235, 0.15) 0%, rgba(37, 99, 235, 0.05) 100%);
         color: var(--sidebar-text);
-        border-left: 3px solid var(--sidebar-text);
-    }
-
-    .nav-link.active::before {
-        transform: scaleX(1);
+        border-left: 3px solid var(--primary-color);
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
     }
 
     .nav-link i {
@@ -178,64 +171,82 @@
         transition: transform 0.3s ease;
     }
 
-    .nav-link:hover i {
-        transform: scale(1.1);
+    .nav-link:hover i,
+    .nav-link.active i {
+        transform: scale(1.15);
+        color: var(--primary-light);
     }
 
     /* Main Content */
     .main-content {
         margin-left: 280px;
-        padding: 40px;
+        padding: 40px 48px;
         min-height: 100vh;
         background: var(--bg-primary);
     }
 
     .page-header {
-        margin-bottom: 40px;
-        padding-bottom: 24px;
-        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 48px;
+        padding-bottom: 32px;
+        border-bottom: 2px solid var(--border-color);
+        position: relative;
+    }
+
+    .page-header::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 120px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--primary-color) 0%, transparent 100%);
     }
 
     .page-header h1 {
-        font-size: 32px;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 8px;
+        font-size: 36px;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--text-primary) 0%, var(--primary-color) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 12px;
+        letter-spacing: -1px;
     }
 
     .page-header p {
         color: var(--text-secondary);
         font-size: 16px;
         margin: 0;
-        font-weight: 400;
+        font-weight: 500;
     }
 
-    /* Cards */
+    /* Modern Cards */
     .card {
         background: var(--bg-card);
         border: 1px solid var(--border-color);
-        border-radius: 12px;
+        border-radius: 16px;
         margin-bottom: 32px;
         box-shadow: var(--shadow-sm);
         transition: all 0.3s ease;
         overflow: hidden;
+        backdrop-filter: blur(10px);
     }
 
     .card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-md);
-        border-color: var(--border-dark);
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--primary-color);
     }
 
     .card-header {
-        padding: 24px 28px;
+        padding: 28px 32px;
         border-bottom: 1px solid var(--border-color);
-        background: var(--bg-surface);
+        background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-secondary) 100%);
     }
 
     .card-header h2 {
-        font-size: 18px;
-        font-weight: 600;
+        font-size: 20px;
+        font-weight: 700;
         color: var(--text-primary);
         margin: 0;
         display: flex;
@@ -243,83 +254,124 @@
         gap: 12px;
     }
 
-    .card-body {
-        padding: 28px;
+    .card-header h2 i {
+        color: var(--primary-color);
+        font-size: 22px;
     }
 
-    /* Form Controls */
+    .card-body {
+        padding: 32px;
+    }
+
+    /* Form Controls - Modern Design */
     .form-label {
         display: block;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
         font-size: 14px;
-        font-weight: 500;
+        font-weight: 600;
         color: var(--text-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .form-control {
         width: 100%;
-        padding: 14px 16px;
+        padding: 16px 20px;
         font-size: 15px;
-        background: var(--bg-primary);
+        background: var(--bg-surface);
         border: 2px solid var(--border-color);
-        border-radius: 8px;
+        border-radius: 12px;
         transition: all 0.3s ease;
         color: var(--text-primary);
+        font-weight: 500;
     }
 
     .form-control:focus {
         outline: none;
         border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
-        background: var(--bg-primary);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        background: var(--bg-surface);
+        transform: translateY(-1px);
     }
 
     .form-control::placeholder {
         color: var(--text-muted);
+        font-weight: 400;
     }
 
+    /* Modern Buttons */
     .btn {
-        padding: 14px 28px;
+        padding: 16px 32px;
         font-size: 15px;
-        font-weight: 600;
-        border-radius: 8px;
+        font-weight: 700;
+        border-radius: 12px;
         border: none;
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         display: inline-flex;
         align-items: center;
         gap: 10px;
         position: relative;
         overflow: hidden;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .btn::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+    }
+
+    .btn:hover::before {
+        width: 300px;
+        height: 300px;
     }
 
     .btn-primary {
-        background: var(--primary-color);
-        color: var(--accent-color);
-        box-shadow: var(--shadow-sm);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
     }
 
     .btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-md);
-        background: var(--primary-light);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
     }
 
     .btn-sm {
-        padding: 10px 20px;
-        font-size: 14px;
+        padding: 12px 24px;
+        font-size: 13px;
     }
 
     .btn-rl {
-        background: var(--rl-color);
+        background: linear-gradient(135deg, var(--rl-color) 0%, #059669 100%);
         color: white;
-        border: none;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     }
 
     .btn-rl:hover {
-        background: #0da271;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
         box-shadow: var(--rl-glow);
+    }
+
+    .btn-outline-secondary {
+        background: transparent;
+        border: 2px solid var(--border-dark);
+        color: var(--text-secondary);
+    }
+
+    .btn-outline-secondary:hover {
+        background: var(--bg-secondary);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
     }
 
     /* Section Headers */
@@ -328,37 +380,47 @@
         align-items: center;
         justify-content: space-between;
         margin-bottom: 24px;
+        padding: 20px 24px;
+        background: var(--bg-card);
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
     }
 
     .section-title {
         font-size: 20px;
-        font-weight: 600;
+        font-weight: 700;
         color: var(--text-primary);
         display: flex;
         align-items: center;
         gap: 12px;
     }
 
-    .badge-count {
-        background: var(--primary-color);
-        color: var(--accent-color);
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-        box-shadow: var(--shadow-sm);
+    .section-title i {
+        color: var(--primary-color);
+        font-size: 22px;
     }
 
-    /* Download Items - Minimal Design */
+    .badge-count {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+        color: white;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    }
+
+    /* Download Items - Modern Glass Effect */
     .download-item {
-        background: var(--bg-card);
+        background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-surface) 100%);
         border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 24px;
-        margin-bottom: 16px;
+        border-radius: 16px;
+        padding: 28px;
+        margin-bottom: 20px;
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
+        backdrop-filter: blur(10px);
     }
 
     .download-item::before {
@@ -371,62 +433,81 @@
         transition: all 0.3s ease;
     }
 
+    .download-item::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent 0%, var(--primary-color) 50%, transparent 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
     .download-item:hover {
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-sm);
-        border-color: var(--border-dark);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--primary-light);
+    }
+
+    .download-item:hover::after {
+        opacity: 1;
     }
 
     .download-item.downloading::before {
-        background: var(--primary-color);
+        background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-light) 100%);
     }
 
     .download-item.completed::before {
-        background: var(--success-color);
+        background: linear-gradient(180deg, var(--success-color) 0%, #059669 100%);
     }
 
     .download-item.failed::before {
-        background: var(--danger-color);
+        background: linear-gradient(180deg, var(--danger-color) 0%, #dc2626 100%);
     }
 
     .download-item.cancelled::before {
-        background: var(--warning-color);
+        background: linear-gradient(180deg, var(--warning-color) 0%, #d97706 100%);
     }
 
     /* RL Optimized Downloads */
     .download-item.rl-optimized {
         border-left: 4px solid var(--rl-color);
-        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
     }
 
     .download-item.rl-optimized:hover {
         box-shadow: var(--rl-glow);
-        transform: translateY(-2px);
+        transform: translateY(-3px);
     }
 
     .rl-badge {
-        background: var(--rl-color);
+        background: linear-gradient(135deg, var(--rl-color) 0%, #059669 100%);
         color: white;
-        padding: 4px 8px;
-        border-radius: 6px;
+        padding: 5px 10px;
+        border-radius: 8px;
         font-size: 11px;
         font-weight: 700;
-        margin-left: 8px;
+        margin-left: 10px;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
     }
 
     .download-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 20px;
+        margin-bottom: 24px;
     }
 
     .download-info h3 {
-        font-size: 16px;
-        font-weight: 600;
+        font-size: 17px;
+        font-weight: 700;
         color: var(--text-primary);
-        margin: 0 0 6px 0;
+        margin: 0 0 8px 0;
         word-break: break-word;
     }
 
@@ -435,7 +516,8 @@
         color: var(--text-secondary);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
+        font-weight: 500;
     }
 
     .download-actions {
@@ -444,11 +526,11 @@
     }
 
     .action-btn {
-        width: 40px;
-        height: 40px;
-        border: 1px solid var(--border-color);
-        background: var(--bg-primary);
-        border-radius: 8px;
+        width: 42px;
+        height: 42px;
+        border: 2px solid var(--border-color);
+        background: var(--bg-surface);
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -459,28 +541,42 @@
         overflow: hidden;
     }
 
+    .action-btn::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: var(--primary-color);
+        opacity: 0.1;
+        transform: translate(-50%, -50%);
+        transition: width 0.3s, height 0.3s;
+    }
+
+    .action-btn:hover::before {
+        width: 100px;
+        height: 100px;
+    }
+
     .action-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-sm);
-        border-color: var(--border-dark);
-        color: var(--text-primary);
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: var(--shadow-md);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
     }
 
     .action-btn.success {
-        background: var(--success-color);
-        color: var(--accent-color);
-        border: none;
-    }
-
-    .action-btn.rl {
-        background: var(--rl-color);
+        background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
         color: white;
         border: none;
     }
 
-    .action-btn.rl:hover {
-        background: #0da271;
-        box-shadow: var(--rl-glow);
+    .action-btn.rl {
+        background: linear-gradient(135deg, var(--rl-color) 0%, #059669 100%);
+        color: white;
+        border: none;
     }
 
     .action-btn.danger:hover {
@@ -488,107 +584,112 @@
         border-color: var(--danger-color);
     }
 
-    /* Progress Bars - Minimal Design */
+    /* Progress Bars - Modern Gradient Design */
     .progress-container {
-        margin-bottom: 16px;
+        margin-bottom: 20px;
     }
 
     .progress-info {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         font-size: 14px;
     }
 
     .progress-percent {
-        font-weight: 700;
+        font-weight: 800;
         color: var(--text-primary);
-        font-size: 16px;
+        font-size: 18px;
     }
 
     .progress-speed {
         color: var(--text-secondary);
-        font-weight: 500;
+        font-weight: 600;
     }
 
     .progress-bar-container {
-        height: 6px;
+        height: 8px;
         background: var(--border-light);
-        border-radius: 6px;
+        border-radius: 8px;
         overflow: hidden;
         position: relative;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .progress-bar {
         height: 100%;
         transition: width 0.4s ease;
-        border-radius: 6px;
+        border-radius: 8px;
         position: relative;
         overflow: hidden;
     }
 
     .progress-bar.downloading {
-        background: var(--primary-color);
+        background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-light) 100%);
+        box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
     }
 
     .progress-bar.completed {
-        background: var(--success-color);
+        background: linear-gradient(90deg, var(--success-color) 0%, #059669 100%);
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
     }
 
     .progress-bar.failed {
-        background: var(--danger-color);
+        background: linear-gradient(90deg, var(--danger-color) 0%, #dc2626 100%);
     }
 
     .progress-bar.cancelled {
-        background: var(--warning-color);
+        background: linear-gradient(90deg, var(--warning-color) 0%, #d97706 100%);
     }
 
-    /* RL Info Section Styles */
+    /* RL Info Section */
     .rl-info-section {
-        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-        border: 1px solid #bae6fd;
-        border-radius: 8px;
-        padding: 12px 16px;
-        margin-top: 12px;
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        border: 2px solid #86efac;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-top: 16px;
         font-size: 13px;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.1);
     }
 
     .rl-status {
         display: flex;
         align-items: center;
         gap: 12px;
-        color: #0c4a6e;
+        color: #065f46;
     }
 
     .rl-status i {
         color: var(--rl-color);
-        font-size: 14px;
+        font-size: 16px;
     }
 
     .rl-text {
         flex: 1;
-        font-weight: 500;
+        font-weight: 600;
     }
 
     .rl-streams {
-        background: var(--rl-color);
+        background: linear-gradient(135deg, var(--rl-color) 0%, #059669 100%);
         color: white;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 12px;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 13px;
+        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
     }
 
     .rl-throughput {
-        color: #0369a1;
-        font-weight: 500;
+        color: #047857;
+        font-weight: 600;
         margin-left: 8px;
     }
 
     /* RL Decision Animation */
     @keyframes rlPulse {
         0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
+        50% { transform: scale(1.02); }
         100% { transform: scale(1); }
     }
 
@@ -600,13 +701,14 @@
     .status-line {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         font-size: 14px;
-        padding: 8px 0;
+        padding: 10px 0;
+        font-weight: 600;
     }
 
     .status-line i {
-        font-size: 14px;
+        font-size: 16px;
     }
 
     .status-line.downloading {
@@ -628,139 +730,49 @@
     /* Empty State */
     .empty-state {
         text-align: center;
-        padding: 60px 40px;
+        padding: 80px 40px;
         color: var(--text-secondary);
+        background: var(--bg-card);
+        border-radius: 16px;
+        border: 2px dashed var(--border-color);
     }
 
     .empty-state i {
-        font-size: 64px;
-        color: var(--border-color);
-        margin-bottom: 20px;
+        font-size: 72px;
+        color: var(--border-dark);
+        margin-bottom: 24px;
         opacity: 0.5;
     }
 
     .empty-state p {
-        font-size: 16px;
-        margin: 0;
-        font-weight: 500;
-    }
-
-    /* Metrics Display */
-    .metrics-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 28px;
-        color: var(--text-primary);
-        margin-bottom: 32px;
-        box-shadow: var(--shadow-md);
-    }
-
-    .metrics-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        padding-bottom: 20px;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    .metrics-header h2 {
-        font-size: 20px;
-        font-weight: 600;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        color: var(--text-primary);
-    }
-
-    .metrics-close {
-        background: transparent;
-        border: none;
-        color: var(--text-secondary);
-        cursor: pointer;
-        padding: 8px;
-        font-size: 20px;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-
-    .metrics-close:hover {
-        background: var(--bg-secondary);
-        color: var(--text-primary);
-    }
-
-    .metrics-content {
-        background: var(--bg-primary);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 24px;
-        font-family: 'JetBrains Mono', 'Fira Code', monospace;
-        font-size: 14px;
-        line-height: 1.8;
-        color: var(--text-secondary);
-        overflow-x: auto;
-        white-space: pre-wrap;
-    }
-
-    .metrics-content strong {
-        color: var(--text-primary);
+        font-size: 18px;
+        margin: 0 0 8px 0;
         font-weight: 600;
     }
 
-    /* Alerts */
-    .alert {
-        padding: 16px 20px;
-        border-radius: 8px;
-        margin-bottom: 24px;
-        font-size: 14px;
-        border: 1px solid;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .alert-success {
-        background: var(--bg-surface);
-        border-color: var(--success-color);
-        color: var(--text-primary);
-    }
-
-    .alert-danger {
-        background: var(--bg-surface);
-        border-color: var(--danger-color);
-        color: var(--text-primary);
-    }
-
-    .alert-warning {
-        background: var(--bg-surface);
-        border-color: var(--warning-color);
-        color: var(--text-primary);
-    }
-
-    /* Radio buttons and form checks */
+    /* Form Check - Modern Design */
     .form-check {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
-        padding: 12px 16px;
-        background: var(--bg-primary);
-        border-radius: 8px;
-        border: 1px solid var(--border-color);
+        gap: 14px;
+        margin-bottom: 14px;
+        padding: 16px 20px;
+        background: var(--bg-surface);
+        border-radius: 12px;
+        border: 2px solid var(--border-color);
         transition: all 0.3s ease;
     }
 
     .form-check:hover {
         border-color: var(--primary-color);
+        background: var(--bg-secondary);
+        transform: translateX(4px);
     }
 
     .form-check-input {
         cursor: pointer;
-        width: 18px;
-        height: 18px;
+        width: 20px;
+        height: 20px;
     }
 
     .form-check-input:checked {
@@ -770,45 +782,163 @@
 
     .form-check-label {
         cursor: pointer;
-        font-size: 14px;
+        font-size: 15px;
         color: var(--text-primary);
-        font-weight: 500;
+        font-weight: 600;
     }
 
     /* Form Switch for RL Mode */
     .form-switch .form-check-input {
-        width: 48px;
-        height: 24px;
+        width: 52px;
+        height: 26px;
     }
 
     .form-switch .form-check-label {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
     }
 
-    .btn-close {
-        background: transparent;
-        border: none;
-        font-size: 18px;
-        cursor: pointer;
-        margin-left: auto;
-        padding: 0;
-        width: 24px;
-        height: 24px;
+    /* RL Controls */
+    .rl-controls {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    /* RL Info Box */
+    .rl-info {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border: 2px solid #93c5fd;
+        border-radius: 12px;
+        padding: 18px;
+        margin-top: 12px;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+    }
+
+    .rl-info i {
+        color: var(--primary-color);
+    }
+
+    /* Metrics Card */
+    .metrics-card {
+        background: var(--bg-card);
+        border: 2px solid var(--border-color);
+        border-radius: 16px;
+        padding: 32px;
+        margin-bottom: 32px;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .metrics-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 28px;
+        padding-bottom: 24px;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .metrics-header h2 {
+        font-size: 22px;
+        font-weight: 700;
+        margin: 0;
         display: flex;
         align-items: center;
-        justify-content: center;
-        color: inherit;
-        opacity: 0.8;
-        transition: opacity 0.3s ease;
+        gap: 12px;
+        color: var(--text-primary);
     }
 
-    .btn-close:hover {
-        opacity: 1;
+    .metrics-close {
+        background: var(--bg-secondary);
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        padding: 10px;
+        font-size: 20px;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .metrics-close:hover {
+        background: var(--danger-color);
+        color: white;
+        transform: rotate(90deg);
+    }
+
+    .metrics-content {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 28px;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 14px;
+        line-height: 1.8;
+        color: var(--text-secondary);
+        overflow-x: auto;
+        white-space: pre-wrap;
+    }
+
+    /* Alerts */
+    .alert {
+        padding: 18px 24px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        font-size: 14px;
+        border: 2px solid;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: var(--shadow-sm);
+        font-weight: 600;
     }
 
     /* File Manager Styles */
+    .file-item {
+        background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-surface) 100%);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 16px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .file-item:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--primary-light);
+    }
+
+    .file-icon {
+        width: 52px;
+        height: 52px;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        color: white;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .file-details h4 {
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 4 0 6px 0;
+        word-break: break-word;
+    }
+
+    .file-meta {
+        display: flex;
+        gap: 18px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
     .file-item {
         background: var(--bg-card);
         border: 1px solid var(--border-color);
@@ -875,68 +1005,475 @@
         gap: 8px;
     }
 
-    /* File type specific icons - All black */
-    .file-zip .file-icon { background: var(--primary-color); }
-    .file-pdf .file-icon { background: var(--primary-color); }
-    .file-image .file-icon { background: var(--primary-color); }
-    .file-video .file-icon { background: var(--primary-color); }
-    .file-audio .file-icon { background: var(--primary-color); }
-    .file-document .file-icon { background: var(--primary-color); }
-    .file-executable .file-icon { background: var(--primary-color); }
+    
 
     /* Empty state for file manager */
     #fileManager .empty-state {
         padding: 60px 40px;
     }
-
-    /* RL Info Box */
-    .rl-info {
-        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-        border: 1px solid #bae6fd;
-        border-radius: 8px;
-        padding: 16px;
-        margin-top: 8px;
-    }
-
-    .rl-info i {
-        color: var(--rl-color);
-    }
-
-    /* RL Controls */
-    .rl-controls {
-        display: flex;
-        gap: 12px;
-        margin-top: 16px;
-    }
-
-    /* RL Stats Section */
-    .rl-stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
-        margin-top: 16px;
-    }
-
-    .rl-stat-card {
-        background: var(--bg-surface);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 16px;
-        text-align: center;
-    }
-
-    .rl-stat-value {
-        font-size: 24px;
+    /* Enhanced RL Styles */
+    .rl-learning {
+        background: rgba(16, 185, 129, 0.15);
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 11px !important;
         font-weight: 700;
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .rl-global-badge {
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.6; }
+        100% { opacity: 1; }
+    }
+
+    /* Enhanced progress animations */
+    .progress-bar.rl-optimized {
+        background: linear-gradient(90deg, var(--rl-color) 0%, #3b82f6 50%, var(--rl-color) 100%);
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--bg-secondary);
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-light) 100%);
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--primary-dark);
+    }
+
+    /* Page sections */
+    .page-section {
+        display: none;
+    }
+
+    .page-section.active {
+        display: block;
+        animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Dashboard Styles */
+    .stats-card {
+        text-align: center;
+        border: none;
+        background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-surface) 100%);
+        box-shadow: var(--shadow-md);
+        transition: all 0.3s ease;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .stats-icon {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 16px;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+    }
+
+    .stats-number {
+        font-size: 32px;
+        font-weight: 800;
+        color: var(--text-primary);
+        margin: 0 0 8px 0;
+    }
+
+    .stats-label {
+        color: var(--text-secondary);
+        font-weight: 600;
+        margin: 0 0 12px 0;
+    }
+
+    .stats-trend {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 20px;
+        background: var(--success-color);
+        color: white;
+        width: fit-content;
+        margin: 0 auto;
+    }
+
+    .stats-trend.up {
+        background: var(--success-color);
+    }
+
+    .stats-trend.down {
+        background: var(--danger-color);
+    }
+
+    /* Activity Timeline */
+    .activity-timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px;
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        border-left: 4px solid var(--primary-color);
+        transition: all 0.3s ease;
+    }
+
+    .activity-item:hover {
+        transform: translateX(4px);
+        background: var(--bg-surface);
+    }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    .activity-icon.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+    }
+
+    .activity-icon.primary {
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--primary-color);
+    }
+
+    .activity-icon.warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning-color);
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-content h4 {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0 0 4px 0;
+    }
+
+    .activity-content p {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin: 0 0 6px 0;
+    }
+
+    .activity-time {
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+
+    .activity-badge {
+        font-size: 10px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .activity-badge.rl {
+        background: var(--rl-color);
+        color: white;
+    }
+
+    .activity-badge.multi {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    /* Status List */
+    .status-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .status-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+    }
+
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .status-indicator.online {
+        background: var(--success-color);
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    }
+
+    .status-indicator.idle {
+        background: var(--warning-color);
+        box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+    }
+
+    .status-indicator.offline {
+        background: var(--danger-color);
+    }
+
+    .status-label {
+        flex: 1;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 14px;
+    }
+
+    .status-value {
+        font-weight: 700;
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+
+    /* RL Progress */
+    .rl-progress {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .rl-progress-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .rl-progress-label {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .rl-progress-percent {
+        font-weight: 800;
         color: var(--rl-color);
-        margin-bottom: 4px;
+        font-size: 18px;
+    }
+
+    .rl-progress-bar {
+        height: 8px;
+        background: var(--border-light);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .rl-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--rl-color) 0%, #3b82f6 100%);
+        border-radius: 8px;
+        transition: width 0.5s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .rl-progress-fill::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        animation: shimmer 2s infinite;
+    }
+
+    .rl-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .rl-stat {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border-light);
+    }
+
+    .rl-stat:last-child {
+        border-bottom: none;
     }
 
     .rl-stat-label {
-        font-size: 12px;
+        font-size: 13px;
         color: var(--text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        font-weight: 500;
+    }
+
+    .rl-stat-value {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .quick-action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 20px 12px;
+        background: var(--bg-secondary);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        color: var(--text-primary);
+        text-decoration: none;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        border: none;
+        width: 100%;
+    }
+
+    .quick-action-btn:hover {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .quick-action-btn i {
+        font-size: 20px;
+    }
+
+    /* Features Grid */
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 24px;
+    }
+
+    .feature-item {
+        text-align: center;
+        padding: 24px;
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+
+    .feature-item:hover {
+        transform: translateY(-4px);
+        background: var(--bg-surface);
+        box-shadow: var(--shadow-md);
+    }
+
+    .feature-icon {
+        width: 70px;
+        height: 70px;
+        margin: 0 auto 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+    }
+
+    .feature-icon.ai {
+        background: linear-gradient(135deg, var(--rl-color) 0%, #059669 100%);
+        color: white;
+    }
+
+    .feature-icon.speed {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+        color: white;
+    }
+
+    .feature-icon.smart {
+        background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+        color: white;
+    }
+
+    .feature-icon.secure {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+    }
+
+    .feature-item h4 {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0 0 12px 0;
+    }
+
+    .feature-item p {
+        font-size: 14px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    /* Chart Container */
+    .chart-container {
+        position: relative;
+        height: 250px;
+        width: 100%;
     }
 
     /* Responsive */
@@ -952,7 +1489,7 @@
 
         .main-content {
             margin-left: 0;
-            padding: 24px;
+            padding: 28px;
         }
     }
 
@@ -966,16 +1503,12 @@
         }
 
         .card-body {
-            padding: 20px;
+            padding: 24px;
         }
 
         .download-header {
             flex-direction: column;
             gap: 16px;
-        }
-
-        .download-actions {
-            align-self: flex-end;
         }
 
         .file-header {
@@ -984,172 +1517,68 @@
             align-items: flex-start;
         }
 
-        .file-actions {
-            align-self: flex-end;
+        .quick-actions {
+            grid-template-columns: 1fr;
         }
-
-        .rl-status {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 8px;
+        
+        .features-grid {
+            grid-template-columns: 1fr;
         }
-
-        .rl-streams {
-            align-self: flex-start;
+        
+        .stats-number {
+            font-size: 24px;
         }
     }
 
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-        width: 6px;
+    /* Loading animation */
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
 
-    ::-webkit-scrollbar-track {
-        background: var(--bg-secondary);
+    .fa-spin {
+        animation: rotate 1s linear infinite;
     }
 
-    ::-webkit-scrollbar-thumb {
-        background: var(--border-dark);
-        border-radius: 3px;
+    /* Hover effects for icons */
+    .card-header h2 i {
+        transition: transform 0.3s ease;
     }
 
-    ::-webkit-scrollbar-thumb:hover {
-        background: var(--text-secondary);
+    .card:hover .card-header h2 i {
+        transform: scale(1.1) rotate(5deg);
     }
-
-    /* Page sections */
-    .page-section {
-        display: none;
-    }
-
-    .page-section.active {
-        display: block;
-    }
-    /* Enhanced RL Styles */
-.rl-learning {
-    background: rgba(16, 185, 129, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 10px !important;
-    font-weight: 600;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    .sidebar-header {
+    /* Set a background color for visibility during development */
+    /* Dark blue, adjust as needed */
+    padding: 15px 20px; /* Add some padding around the header content */
+    display: flex; /* Use flexbox for easy alignment of children */
+    align-items: center; /* Vertically center items */
 }
 
-.rl-global-badge {
-    animation: pulse 2s infinite;
+.sidebar-brand {
+    display: flex; /* Make the brand itself a flex container */
+    align-items: center; /* Vertically center the logo and title */
+    text-decoration: none; /* Remove underline from the link */
+    color: #ffffff; /* Set text color for the brand title */
 }
 
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
+
+
+.sidebar-logo img {
+    width: 60px; 
+    height: auto; /* Maintain aspect ratio */
+    margin-right: 10px; /* Space between logo and title */
+    vertical-align: middle; /* Ensures proper vertical alignment if not using flex on parent */
 }
 
-.rl-decision-history {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    background: rgba(0, 0, 0, 0.03);
-    padding: 4px 8px;
-    border-radius: 4px;
-    border-left: 3px solid var(--rl-color);
+.sidebar-title {
+    font-size: 20px; /* Adjust font size as needed */
+    font-weight: bold; /* Make the title bold */
+    color: #ffffff; /* Ensure title color is white */
+    white-space: nowrap; /* Prevent title from wrapping */
 }
-
-/* Enhanced progress animations */
-.progress-bar.rl-optimized {
-    background: linear-gradient(90deg, var(--rl-color), #3b82f6);
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
-/* Enhanced RL Styles */
-.rl-learning {
-    background: rgba(16, 185, 129, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 10px !important;
-    font-weight: 600;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.rl-global-badge {
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
-}
-
-.rl-decision-history {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    background: rgba(0, 0, 0, 0.03);
-    padding: 4px 8px;
-    border-radius: 4px;
-    border-left: 3px solid var(--rl-color);
-}
-
-/* Enhanced progress animations */
-.progress-bar.rl-optimized {
-    background: linear-gradient(90deg, var(--rl-color), #3b82f6);
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
-}
-
-@keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
-
-/* RL decision animation */
-.rl-decision {
-    animation: rlPulse 0.6s ease-in-out;
-}
-
-@keyframes rlPulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-    100% { transform: scale(1); }
-}
-
-/* Better RTT level styling */
-.rl-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.rl-status i {
-    color: var(--rl-color);
-    font-size: 14px;
-}
-
-.rl-text {
-    flex: 1;
-    font-weight: 500;
-    min-width: 120px;
-}
-
-.rl-streams {
-    background: var(--rl-color);
-    color: white;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 12px;
-    white-space: nowrap;
-}
-
-.rl-throughput {
-    color: #0369a1;
-    font-weight: 500;
-    font-size: 11px;
-    white-space: nowrap;
-}
+    
 </style>
 </head>
 <body>
@@ -1158,21 +1587,23 @@
         <div class="sidebar-header">
             <a href="#" class="sidebar-brand">
                 <div class="sidebar-logo">
-                    <i class="fas fa-bolt"></i>
+                    <!-- Replace the icon with your logo image -->
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="TurboLane Logo">
                 </div>
+                <!-- Optional: Keep the title if you want text alongside the logo -->
                 <span class="sidebar-title">TurboLane</span>
             </a>
         </div>
         
         <ul class="nav-menu">
             <li class="nav-item">
-                <a href="#" class="nav-link" data-page="dashboard">
+                <a href="#" class="nav-link active" data-page="dashboard">
                     <i class="fas fa-th-large"></i>
                     <span>Dashboard</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a href="#" class="nav-link active" data-page="downloads">
+                <a href="#" class="nav-link" data-page="downloads">
                     <i class="fas fa-download"></i>
                     <span>Downloads</span>
                 </a>
@@ -1200,8 +1631,281 @@
 
     <!-- Main Content -->
     <div class="main-content">
+        <!-- Dashboard Page -->
+        <div class="page-section active" id="dashboard-page">
+            <div class="page-header">
+                <h1>Dashboard</h1>
+                <p>Welcome to TurboLane - Your AI-Powered Download Manager</p>
+            </div>
+
+            <!-- Stats Cards Row -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card stats-card">
+                        <div class="card-body text-center">
+                            <div class="stats-icon">
+                                <i class="fas fa-download"></i>
+                            </div>
+                            <h3 class="stats-number" id="totalDownloads">0</h3>
+                            <p class="stats-label">Total Downloads</p>
+                            <div class="stats-trend up">
+                                <i class="fas fa-arrow-up"></i>
+                                <span>12% this week</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card">
+                        <div class="card-body text-center">
+                            <div class="stats-icon">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            <h3 class="stats-number" id="totalSaved">0h</h3>
+                            <p class="stats-label">Time Saved</p>
+                            <div class="stats-trend up">
+                                <i class="fas fa-arrow-up"></i>
+                                <span>8.5x faster</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card">
+                        <div class="card-body text-center">
+                            <div class="stats-icon">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <h3 class="stats-number" id="rlOptimized">0</h3>
+                            <p class="stats-label">RL Optimized</p>
+                            <div class="stats-trend up">
+                                <i class="fas fa-arrow-up"></i>
+                                <span>AI Learning Active</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stats-card">
+                        <div class="card-body text-center">
+                            <div class="stats-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <h3 class="stats-number" id="totalData">0 GB</h3>
+                            <p class="stats-label">Data Downloaded</p>
+                            <div class="stats-trend up">
+                                <i class="fas fa-arrow-up"></i>
+                                <span>24% growth</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Dashboard Content -->
+            <div class="row">
+                <!-- Left Column -->
+                <div class="col-lg-8">
+                    <!-- Performance Chart -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h2><i class="fas fa-chart-line"></i> Download Performance</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="performanceChart" height="250"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-history"></i> Recent Activity</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="activity-timeline" id="activityTimeline">
+                                <div class="activity-item">
+                                    <div class="activity-icon success">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <div class="activity-content">
+                                        <h4>Download Completed</h4>
+                                        <p>ubuntu-22.04.iso - 4.2 GB</p>
+                                        <span class="activity-time">2 minutes ago</span>
+                                    </div>
+                                    <div class="activity-badge rl">
+                                        🤖 RL Optimized
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <div class="activity-icon primary">
+                                        <i class="fas fa-download"></i>
+                                    </div>
+                                    <div class="activity-content">
+                                        <h4>Download Started</h4>
+                                        <p>large_dataset.zip - 2.1 GB</p>
+                                        <span class="activity-time">5 minutes ago</span>
+                                    </div>
+                                    <div class="activity-badge multi">
+                                        ⚡ Multi-Stream
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <div class="activity-icon warning">
+                                        <i class="fas fa-robot"></i>
+                                    </div>
+                                    <div class="activity-content">
+                                        <h4>RL Model Updated</h4>
+                                        <p>Learned optimal streams for slow networks</p>
+                                        <span class="activity-time">1 hour ago</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="col-lg-4">
+                    <!-- System Status -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h2><i class="fas fa-server"></i> System Status</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="status-list">
+                                <div class="status-item">
+                                    <div class="status-indicator online"></div>
+                                    <span class="status-label">Download Engine</span>
+                                    <span class="status-value">Online</span>
+                                </div>
+                                <div class="status-item">
+                                    <div class="status-indicator online"></div>
+                                    <span class="status-label">RL Optimizer</span>
+                                    <span class="status-value">Learning</span>
+                                </div>
+                                <div class="status-item">
+                                    <div class="status-indicator online"></div>
+                                    <span class="status-label">File Manager</span>
+                                    <span class="status-value">Ready</span>
+                                </div>
+                                <div class="status-item">
+                                    <div class="status-indicator idle"></div>
+                                    <span class="status-label">Active Downloads</span>
+                                    <span class="status-value" id="activeDownloadsCount">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RL Learning Progress -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h2><i class="fas fa-brain"></i> AI Learning</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="rl-progress">
+                                <div class="rl-progress-info">
+                                    <span class="rl-progress-label">Learning Progress</span>
+                                    <span class="rl-progress-percent" id="rlLearningProgress">0%</span>
+                                </div>
+                                <div class="rl-progress-bar">
+                                    <div class="rl-progress-fill" id="rlProgressFill" style="width: 0%"></div>
+                                </div>
+                                <div class="rl-stats">
+                                    <div class="rl-stat">
+                                        <span class="rl-stat-label">Q-Table Size</span>
+                                        <span class="rl-stat-value" id="qTableSize">0 states</span>
+                                    </div>
+                                    <div class="rl-stat">
+                                        <span class="rl-stat-label">Exploration Rate</span>
+                                        <span class="rl-stat-value" id="explorationRate">0%</span>
+                                    </div>
+                                    <div class="rl-stat">
+                                        
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-rocket"></i> Quick Actions</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="quick-actions">
+                                <button class="quick-action-btn" onclick="downloadManager.switchPage('downloads')">
+                                    <i class="fas fa-plus"></i>
+                                    <span>New Download</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="downloadManager.switchPage('files')">
+                                    <i class="fas fa-folder-open"></i>
+                                    <span>Open Files</span>
+                                </button>
+                                <button class="quick-action-btn" onclick="downloadManager.showRLStats()">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <span>View Analytics</span>
+                                </button>
+                                <button class="quick-action-btn" id="optimizeAllBtn">
+                                    <i class="fas fa-magic"></i>
+                                    <span>Optimize All</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TurboLane Features -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-star"></i> Why TurboLane?</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="features-grid">
+                                <div class="feature-item">
+                                    <div class="feature-icon ai">
+                                        <i class="fas fa-robot"></i>
+                                    </div>
+                                    <h4>AI-Powered Optimization</h4>
+                                    <p>Reinforcement Learning automatically adjusts parallel streams based on network conditions for maximum speed.</p>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon speed">
+                                        <i class="fas fa-bolt"></i>
+                                    </div>
+                                    <h4>Multi-Stream Technology</h4>
+                                    <p>Download files up to 8x faster by splitting them into multiple parallel streams.</p>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon smart">
+                                        <i class="fas fa-brain"></i>
+                                    </div>
+                                    <h4>Smart Learning</h4>
+                                    <p>Learns from your network patterns and improves download strategies over time.</p>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon secure">
+                                        <i class="fas fa-shield-alt"></i>
+                                    </div>
+                                    <h4>Secure & Reliable</h4>
+                                    <p>Built with security in mind. Resume broken downloads and verify file integrity.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Downloads Page -->
-        <div class="page-section active" id="downloads-page">
+        <div class="page-section" id="downloads-page">
             <div class="page-header">
                 <h1>TurboLane Download Manager</h1>
                 <p>High-performance multi-stream downloads with AI-powered optimization</p>
